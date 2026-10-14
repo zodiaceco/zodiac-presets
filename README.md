@@ -10,18 +10,18 @@ bun add @zodiaceco/presets
 
 ```ts
 // constellation/roles/curator/permissions.ts
-import { morphoDeposit, morphoWithdraw } from '@zodiaceco/presets'
+import { morpho } from '@zodiaceco/presets'
 
 const vaults = ['0xbeeff1D5dE8F79ff37a151681100B039661da518'] as const // Bitget x Steakhouse USDC
 
 export default [
   // Labelled "Deposit into Morpho vault: Bitget x Steakhouse USDC"
-  await morphoDeposit({
+  await morpho.deposit({
     chain: 42161,
     asset: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC
     vaults,
   }),
-  await morphoWithdraw({ chain: 42161, vaults, label: 'Withdraw USDC' }),
+  await morpho.withdraw({ chain: 42161, vaults, label: 'Withdraw USDC' }),
 ] satisfies Permissions
 ```
 
@@ -30,16 +30,16 @@ permissions file is an ES module, so top-level `await` works there.
 
 ## Presets
 
-| Preset           | What it allows                                                                                                                                                       |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `morphoDeposit`  | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. Shares go to the avatar. |
-| `morphoWithdraw` | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1. Assets go to the avatar.                                                             |
+| Preset            | What it allows                                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `morpho.deposit`  | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. Shares go to the avatar. |
+| `morpho.withdraw` | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1. Assets go to the avatar.                                                             |
 
 Both pin VaultBundlesV1's referral fee to zero. Without a `label`, they look up
 the vaults' names on the [Morpho API](https://api.morpho.org/graphql). They
 cover every chain where both Morpho and Zodiac are deployed: Ethereum,
 Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum and Katana
-(`VAULT_BUNDLES_V1` in `src/morpho.ts`, checked against Morpho's own registry
+(`VAULT_BUNDLES_V1` in `src/morpho/index.ts`, checked against Morpho's own registry
 in `@morpho-org/morpho-ts`).
 
 ## Adding a preset
@@ -53,13 +53,16 @@ in `@morpho-org/morpho-ts`).
    - **A contract at one address** goes under its chain prefix
      (`arb1: { … }`); `bun codegen` fetches its ABI.
 2. `bun codegen` regenerates the kit types in `src/kit.generated.d.ts`.
-3. Write the preset in `src/<protocol>.ts` with `custom()` from
-   `@zodiaceco/sdk/actions`, building its permissions from the typed kit.
+3. Write the presets in `src/<protocol>/index.ts`, grouped as one object per
+   protocol (`export const morpho = { deposit, withdraw }`), each built with
+   `custom()` from `@zodiaceco/sdk/actions` on the typed kit.
    Explain in a comment why every unconstrained parameter is safe.
    Contract addresses that differ by chain go in a map keyed by chain id,
    covering every chain the protocol and Zodiac share.
-4. Export it from `src/index.ts`, add tests next to it
-   (`src/<protocol>.test.ts`) and a row to the table above.
+4. Export the object from `src/index.ts`, add tests next to it
+   (`src/<protocol>/index.test.ts`) and a row to the table above. A preset
+   replacing a DeFi Kit one is tested against DeFi Kit's output for the same
+   inputs (`expectSamePermissions` in `src/test/defiKit.ts`).
 
 ## Development
 
