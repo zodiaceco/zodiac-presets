@@ -6,11 +6,12 @@ export const ZERO: Address = '0x0000000000000000000000000000000000000000'
 /** Native ETH (or the chain's native token) wherever a preset takes a token. */
 export const NATIVE: Address = ZERO
 
-/** Matches `address` itself, or any of several. */
-export const oneOf = (addresses: readonly Address[]) =>
-  addresses.length === 1
-    ? addresses[0]!
-    : c.or(...(addresses as [Address, Address, ...Address[]]))
+/** Matches `value` itself, or any of several (addresses, amounts, …). */
+export const oneOf = <T>(values: readonly T[]) => {
+  if (values.length === 0) throw new Error('`oneOf` needs at least one value')
+
+  return values.length === 1 ? values[0]! : c.or(...(values as [T, T, ...T[]]))
+}
 
 /** "a", "a and b", "a, b and c". */
 export const list = (items: readonly string[]) =>
