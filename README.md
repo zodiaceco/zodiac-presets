@@ -10,23 +10,37 @@ bun add @zodiaceco/presets
 
 ```ts
 // constellation/roles/curator/permissions.ts
-import { morphoVaults } from '@zodiaceco/presets'
+import { morphoDeposit, morphoWithdraw } from '@zodiaceco/presets'
+
+const vaults = ['0xbeeff1D5dE8F79ff37a151681100B039661da518'] as const // Bitget x Steakhouse USDC
 
 export default [
-  morphoVaults({
-    label: 'Deposit USDC into Morpho',
+  // Labelled "Deposit into Morpho vault: Bitget x Steakhouse USDC"
+  await morphoDeposit({
     chain: 42161,
     asset: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC
-    vaults: ['0xbeeff1D5dE8F79ff37a151681100B039661da518'], // Bitget x Steakhouse USDC
+    vaults,
   }),
+  await morphoWithdraw({ chain: 42161, vaults, label: 'Withdraw USDC' }),
 ] satisfies Permissions
 ```
 
+Presets that look something up are async, so `await` them. A role's
+permissions file is an ES module, so top-level `await` works there.
+
 ## Presets
 
-| Preset         | What it allows                                                                                                                                                                                                                                              |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `morphoVaults` | Deposit into and withdraw from Morpho vaults that share one asset, either through the vaults' own ERC-4626 calls or the way the Morpho app does it, through VaultBundlesV1. Every receiver and owner is the avatar, and the bundler's referral fee is zero. |
+| Preset           | What it allows                                                                                                                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `morphoDeposit`  | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. Shares go to the avatar. |
+| `morphoWithdraw` | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1. Assets go to the avatar.                                                             |
+
+Both pin VaultBundlesV1's referral fee to zero. Without a `label`, they look up
+the vaults' names on the [Morpho API](https://api.morpho.org/graphql). They
+cover every chain where both Morpho and Zodiac are deployed: Ethereum,
+Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum and Katana
+(`VAULT_BUNDLES_V1` in `src/morpho.ts`, checked against Morpho's own registry
+in `@morpho-org/morpho-ts`).
 
 ## Adding a preset
 
@@ -38,10 +52,12 @@ export default [
      `at('<name>', address)`.
    - **A contract at one address** goes under its chain prefix
      (`arb1: { … }`); `bun codegen` fetches its ABI.
-2. `bun codegen` regenerates the `Kit` types in `src/kit.generated.d.ts`.
+2. `bun codegen` regenerates the kit types in `src/kit.generated.d.ts`.
 3. Write the preset in `src/<protocol>.ts` with `custom()` from
    `@zodiaceco/sdk/actions`, building its permissions from the typed kit.
    Explain in a comment why every unconstrained parameter is safe.
+   Contract addresses that differ by chain go in a map keyed by chain id,
+   covering every chain the protocol and Zodiac share.
 4. Export it from `src/index.ts`, add tests next to it
    (`src/<protocol>.test.ts`) and a row to the table above.
 
@@ -50,7 +66,7 @@ export default [
 | Command           | What it does                              |
 | ----------------- | ----------------------------------------- |
 | `bun install`     | Install dependencies                      |
-| `bun codegen`     | Regenerate the `Kit` types from the ABIs  |
+| `bun codegen`     | Regenerate the kit types from the ABIs    |
 | `bun test`        | Run the tests                             |
 | `bun check:types` | Type-check                                |
 | `bun fix:format`  | Format with Prettier                      |

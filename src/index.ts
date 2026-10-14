@@ -1,7 +1,9 @@
 export { at, type Abi, type Address } from './kit'
 export {
-  morphoVaults,
+  morphoDeposit,
+  morphoWithdraw,
   VAULT_BUNDLES_V1,
   type MorphoChain,
-  type MorphoVaultsParams,
+  type MorphoDepositParams,
+  type MorphoWithdrawParams,
 } from './morpho'

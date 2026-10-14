@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { buildAllowKit } from '@zodiaceco/sdk'
-import type { Kit } from './kit.generated'
+import type { AllowKit as Kit } from './kit.generated'
 
 export type Address = `0x${string}`
 

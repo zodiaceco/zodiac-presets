@@ -1,7 +1,7 @@
 import { defineConfig } from '@zodiaceco/sdk/cli/config'
 
 // Not a constellation: this config only feeds `bun codegen`, which types the
-// contracts below as `Kit` in `src/kit.generated.d.ts`.
+// contracts below as `AllowKit` in `src/kit.generated.d.ts`.
 //
 // Under the `any` key are ABIs, not deployments. Their ABIs live in
 // `abis/any/` and a preset binds one to the address it's given at call time
