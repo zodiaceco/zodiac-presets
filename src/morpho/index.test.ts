@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { addressesRegistry } from '@morpho-org/morpho-ts'
 import { CHAIN_IDS } from '@zodiaceco/sdk/allow'
-import {
-  MORPHO_API,
-  morphoDeposit,
-  morphoWithdraw,
-  VAULT_BUNDLES_V1,
-} from './morpho'
+import { MORPHO_API, morpho, VAULT_BUNDLES_V1 } from '.'
 
 const USDC = '0xaf88d065e77c8cc2239327c5edb3a432268e5831'
 const VAULT = '0xbeeff1d5de8f79ff37a151681100b039661da518'
@@ -35,11 +30,17 @@ const find = (permissions: Permission[], target: string, selector: string) =>
   permissions.find((p) => p.targetAddress === target && p.selector === selector)
 
 const deposit = async (vaults: [`0x${string}`, ...`0x${string}`[]]) =>
-  (await morphoDeposit({ label: 'Deposit', chain: 42161, asset: USDC, vaults }))
-    .permissions as Permission[]
+  (
+    await morpho.deposit({
+      label: 'Deposit',
+      chain: 42161,
+      asset: USDC,
+      vaults,
+    })
+  ).permissions as Permission[]
 
 const withdraw = async (vaults: [`0x${string}`, ...`0x${string}`[]]) =>
-  (await morphoWithdraw({ label: 'Withdraw', chain: 42161, vaults }))
+  (await morpho.withdraw({ label: 'Withdraw', chain: 42161, vaults }))
     .permissions as Permission[]
 
 // The Morpho API, answering for the vaults it knows. V2 and V1 vaults come back
@@ -78,7 +79,7 @@ afterEach(() => {
   globalThis.fetch = realFetch
 })
 
-describe('morphoDeposit', () => {
+describe('morpho.deposit', () => {
   it('allows depositing through the bundles contract or straight into the vault', async () => {
     expect(calls(await deposit([VAULT]))).toEqual([
       [USDC, SELECTORS.approve],
@@ -123,7 +124,7 @@ describe('morphoDeposit', () => {
   })
 })
 
-describe('morphoWithdraw', () => {
+describe('morpho.withdraw', () => {
   it('allows withdrawing through the bundles contract or straight from the vault', async () => {
     expect(calls(await withdraw([VAULT]))).toEqual([
       [BUNDLES, SELECTORS.vaultBundlesV1Withdraw],
@@ -154,7 +155,7 @@ describe('morphoWithdraw', () => {
 
 describe('labels', () => {
   it('keeps a label it is given, without asking the Morpho API', async () => {
-    const entry = await morphoDeposit({
+    const entry = await morpho.deposit({
       label: 'Park USDC',
       chain: 42161,
       asset: USDC,
@@ -166,7 +167,7 @@ describe('labels', () => {
   })
 
   it('names a vault after the Morpho API', async () => {
-    const entry = await morphoDeposit({
+    const entry = await morpho.deposit({
       chain: 42161,
       asset: USDC,
       vaults: [VAULT],
@@ -178,7 +179,7 @@ describe('labels', () => {
   })
 
   it('names several vaults, V1 and V2 alike', async () => {
-    const entry = await morphoWithdraw({
+    const entry = await morpho.withdraw({
       chain: 42161,
       vaults: [VAULT, OTHER_VAULT],
     })
@@ -189,7 +190,7 @@ describe('labels', () => {
   })
 
   it('asks for the vaults on their chain', async () => {
-    await morphoWithdraw({ chain: 42161, vaults: [VAULT] })
+    await morpho.withdraw({ chain: 42161, vaults: [VAULT] })
 
     const [url, init] = fetchMock.mock.calls[0]!
 
@@ -202,7 +203,7 @@ describe('labels', () => {
 
   it('falls back to the address of a vault the API does not know', async () => {
     const unknown = '0x1111111111111111111111111111111111111111'
-    const entry = await morphoWithdraw({ chain: 42161, vaults: [unknown] })
+    const entry = await morpho.withdraw({ chain: 42161, vaults: [unknown] })
 
     expect(entry.label).toBe(`Withdraw from Morpho vault: ${unknown}`)
   })
@@ -213,7 +214,7 @@ describe('labels', () => {
     )
 
     await expect(
-      morphoWithdraw({ chain: 42161, vaults: [VAULT] })
+      morpho.withdraw({ chain: 42161, vaults: [VAULT] })
     ).rejects.toThrow('Pass a `label` to skip the lookup.')
   })
 })

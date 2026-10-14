@@ -8,14 +8,16 @@
         "@morpho-org/morpho-ts": "^4.0.0",
         "@types/bun": "^1.2.21",
         "@zodiaceco/sdk": "^2.7.0",
+        "defi-kit": "2.27.1",
         "ethers": "^6.13.0",
         "prettier": "^3.6.2",
         "rimraf": "^6.1.0",
         "tsdown": "~0.21.9",
         "typescript": "^5.9.2",
+        "zodiac-roles-sdk": "^4.1.3",
       },
       "peerDependencies": {
-        "@zodiaceco/sdk": "^2.6.0",
+        "@zodiaceco/sdk": "^2.7.0",
         "ethers": "^6.13.0",
       },
     },
@@ -451,13 +453,11 @@
 
     "yaml": ["yaml@2.9.1", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw=="],
 
-    "zod": ["zod@4.6.7", "", {}, "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="],
+    "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "zodiac-roles-deployments": ["zodiac-roles-deployments@3.3.0", "", {}, "sha512-3nLQBnj4poc6f9fnIvf3Su4wfqoskswDtIIyXdobNGsYR4R0FMCNf09xiVkOJU+a8QYPNGtr5Gxu5ROiADCh7Q=="],
 
     "zodiac-roles-sdk": ["zodiac-roles-sdk@4.1.3", "", { "dependencies": { "@cowprotocol/sdk-config": "^0.6.3", "@cowprotocol/sdk-order-book": "^0.5.1", "ethers": "^6.13.5" }, "peerDependencies": { "@gnosis-guild/eth-sdk-client": "^0.1.6", "openapi-backend": "^5.15.0", "openapi-types": "^12.1.3" }, "optionalPeers": ["@gnosis-guild/eth-sdk-client", "openapi-backend", "openapi-types"] }, "sha512-oT3nfpEuSJV6CQzcEpWX0iCi0xRRXjU5n1Y8cla7Xtl5voGbcPig1XNCx68TqnPqtYTMp6yO1hahwDPFk/gYSQ=="],
-
-    "@asteasolutions/zod-to-openapi/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@cowprotocol/sdk-order-book/limiter": ["limiter@3.0.0", "", {}, "sha512-hev7DuXojsTFl2YwyzUJMDnZ/qBDd3yZQLSH3aD4tdL1cqfc3TMnoecEJtWFaQFdErZsKoFMBTxF/FBSkgDbEg=="],
 
@@ -465,9 +465,9 @@
 
     "@gnosis-guild/eth-sdk/glob": ["glob@7.1.7", "", { "dependencies": { "fs.realpath": "^1.0.0", "inflight": "^1.0.4", "inherits": "2", "minimatch": "^3.0.4", "once": "^1.3.0", "path-is-absolute": "^1.0.0" } }, "sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ=="],
 
-    "@gnosis-guild/eth-sdk/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
-
     "@noble/curves/@noble/hashes": ["@noble/hashes@1.3.2", "", {}, "sha512-MVC8EAQp7MvEcm30KWENFjgR+Mkmf+D189XJTkFIlwohU5hcBbn1ZkKq7KVTi2Hme3PMGF390DaL52beVrIihQ=="],
+
+    "@zodiaceco/api-types/zod": ["zod@4.6.7", "", {}, "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="],
 
     "ast-kit/@babel/parser": ["@babel/parser@8.0.7", "", { "dependencies": { "@babel/types": "^8.0.6" }, "bin": "./bin/babel-parser.js" }, "sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA=="],
 
@@ -478,8 +478,6 @@
     "command-line-usage/chalk": ["chalk@2.4.2", "", { "dependencies": { "ansi-styles": "^3.2.1", "escape-string-regexp": "^1.0.5", "supports-color": "^5.3.0" } }, "sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ=="],
 
     "command-line-usage/typical": ["typical@5.2.0", "", {}, "sha512-dvdQgNDNJo+8B2uBQoqdb11eUCE1JQXhvjC/CZtgvZseVd5TYMXnq0+vuUemXbd/Se29cTaUuPX3YIc2xgbvIg=="],
-
-    "defi-kit/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "defi-kit/zodiac-roles-sdk": ["zodiac-roles-sdk@3.4.8", "", { "dependencies": { "@cowprotocol/sdk-config": "^0.6.3", "@cowprotocol/sdk-order-book": "^0.5.1", "ethers": "^6.13.5", "zodiac-roles-deployments": "3.3.0" }, "peerDependencies": { "@gnosis-guild/eth-sdk-client": "^0.1.6", "openapi-backend": "^5.15.0", "openapi-types": "^12.1.3" }, "optionalPeers": ["@gnosis-guild/eth-sdk-client", "openapi-backend", "openapi-types"] }, "sha512-3ldikfvxz3bQdkA8cT+4jjLkNI+CxQuPg6j/ig9jnU4HoT6MneU8cOSdkiA+d8ARIlVxvyEpYfhRtzELNYBTcA=="],
 

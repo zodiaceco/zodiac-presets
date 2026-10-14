@@ -1,6 +1,7 @@
 import { c } from '@zodiaceco/sdk'
 import { custom } from '@zodiaceco/sdk/actions'
-import { at, type Address } from './kit'
+import { at, type Address } from '../kit'
+import { oneOf, ZERO } from '../utils'
 
 // Morpho vaults (V1 and V2), used either directly (the vault's own ERC-4626
 // calls) or the way the Morpho app does it, through VaultBundlesV1.
@@ -49,13 +50,11 @@ export type MorphoWithdrawParams = {
   vaults: Vaults
 }
 
-const ZERO: Address = '0x0000000000000000000000000000000000000000'
-
 /**
  * Deposit into Morpho vaults that share one asset, receiving the shares in
  * the avatar. Without a `label`, looks up the vaults' names on the Morpho API.
  */
-export const morphoDeposit = async ({
+const deposit = async ({
   label,
   chain,
   asset,
@@ -95,11 +94,7 @@ export const morphoDeposit = async ({
  * Withdraw from Morpho vaults, paying the assets out to the avatar. Without a
  * `label`, looks up the vaults' names on the Morpho API.
  */
-export const morphoWithdraw = async ({
-  label,
-  chain,
-  vaults,
-}: MorphoWithdrawParams) => {
+const withdraw = async ({ label, chain, vaults }: MorphoWithdrawParams) => {
   const vaultBundles = VAULT_BUNDLES_V1[chain]
 
   return custom({
@@ -129,11 +124,6 @@ export const morphoWithdraw = async ({
     ],
   })
 }
-
-const oneOf = (addresses: readonly Address[]) =>
-  addresses.length === 1
-    ? addresses[0]!
-    : c.or(...(addresses as [Address, Address, ...Address[]]))
 
 /** "Morpho vault: <name>", or "Morpho vaults: <name>, <name>". */
 const describeVaults = async (chain: MorphoChain, vaults: Vaults) => {
@@ -201,3 +191,5 @@ const vaultNames = async (
     ])
   )
 }
+
+export const morpho = { deposit, withdraw }

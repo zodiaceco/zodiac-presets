@@ -44,10 +44,12 @@
     "@morpho-org/morpho-ts": "^4.0.0",
     "@types/bun": "^1.2.21",
     "@zodiaceco/sdk": "^2.7.0",
+    "defi-kit": "2.27.1",
     "ethers": "^6.13.0",
     "prettier": "^3.6.2",
     "rimraf": "^6.1.0",
     "tsdown": "~0.21.9",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "zodiac-roles-sdk": "^4.1.3"
   }
 }
