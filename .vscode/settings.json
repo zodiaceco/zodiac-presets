@@ -1,0 +1,11 @@
+{
+  "bun.debugTerminal.enabled": true,
+
+  "search.exclude": {
+    "node_modules": true,
+    "dist": true
+  },
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "typescript.tsdk": "node_modules/typescript/lib"
+}
