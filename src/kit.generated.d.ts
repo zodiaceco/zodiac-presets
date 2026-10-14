@@ -5,6 +5,96 @@ import type { Scoping, Options, EVERYTHING, FunctionPermission, TargetPermission
 
 export interface AllowKit {
   any: {
+    aave_v3_pool: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      approvePositionManager: (positionManager?: Scoping<`0x${string}`>, approve?: Scoping<boolean>, options?: Options) => FunctionPermission;
+      "borrow(address,uint256,uint256,uint16,address)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, interestRateMode?: Scoping<import("ethers").BigNumberish>, referralCode?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "borrow(bytes32)": (args?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      configureEModeCategory: (id?: Scoping<import("ethers").BigNumberish>, category?: Scoping<{ ltv: import("ethers").BigNumberish; liquidationThreshold: import("ethers").BigNumberish; liquidationBonus: import("ethers").BigNumberish; isolated: boolean; label: string }>, options?: Options) => FunctionPermission;
+      configureEModeCategoryBorrowableBitmap: (id?: Scoping<import("ethers").BigNumberish>, borrowableBitmap?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      configureEModeCategoryCollateralBitmap: (id?: Scoping<import("ethers").BigNumberish>, collateralBitmap?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      configureEModeCategoryIsolated: (id?: Scoping<import("ethers").BigNumberish>, isolated?: Scoping<boolean>, options?: Options) => FunctionPermission;
+      configureEModeCategoryLtvzeroBitmap: (id?: Scoping<import("ethers").BigNumberish>, ltvzeroBitmap?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      deposit: (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, referralCode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      eliminateReserveDeficit: (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      finalizeTransfer: (asset?: Scoping<`0x${string}`>, from?: Scoping<`0x${string}`>, to?: Scoping<`0x${string}`>, scaledAmount?: Scoping<import("ethers").BigNumberish>, scaledBalanceFromBefore?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      flashLoan: (receiverAddress?: Scoping<`0x${string}`>, assets?: Scoping<readonly (`0x${string}`)[]>, amounts?: Scoping<readonly (import("ethers").BigNumberish)[]>, interestRateModes?: Scoping<readonly (import("ethers").BigNumberish)[]>, onBehalfOf?: Scoping<`0x${string}`>, params?: Scoping<import("ethers").BytesLike>, referralCode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      flashLoanSimple: (receiverAddress?: Scoping<`0x${string}`>, asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, params?: Scoping<import("ethers").BytesLike>, referralCode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      initReserve: (asset?: Scoping<`0x${string}`>, aTokenAddress?: Scoping<`0x${string}`>, variableDebtAddress?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      initialize: (provider?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "liquidationCall(address,address,address,uint256,bool)": (collateralAsset?: Scoping<`0x${string}`>, debtAsset?: Scoping<`0x${string}`>, borrower?: Scoping<`0x${string}`>, debtToCover?: Scoping<import("ethers").BigNumberish>, receiveAToken?: Scoping<boolean>, options?: Options) => FunctionPermission;
+      "liquidationCall(bytes32,bytes32)": (args1?: Scoping<`0x${string}`>, args2?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      mintToTreasury: (assets?: Scoping<readonly (`0x${string}`)[]>, options?: Options) => FunctionPermission;
+      multicall: (data?: Scoping<readonly (import("ethers").BytesLike)[]>, options?: Options) => FunctionPermission;
+      renouncePositionManagerRole: (user?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "repay(bytes32)": (args?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "repay(address,uint256,uint256,address)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, interestRateMode?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "repayWithATokens(address,uint256,uint256)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, interestRateMode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      "repayWithATokens(bytes32)": (args?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "repayWithPermit(bytes32,bytes32,bytes32)": (args?: Scoping<`0x${string}`>, r?: Scoping<`0x${string}`>, s?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "repayWithPermit(address,uint256,uint256,address,uint256,uint8,bytes32,bytes32)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, interestRateMode?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, deadline?: Scoping<import("ethers").BigNumberish>, permitV?: Scoping<import("ethers").BigNumberish>, permitR?: Scoping<`0x${string}`>, permitS?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      rescueTokens: (token?: Scoping<`0x${string}`>, to?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      setConfiguration: (asset?: Scoping<`0x${string}`>, configuration?: Scoping<{ data: import("ethers").BigNumberish }>, options?: Options) => FunctionPermission;
+      setLiquidationGracePeriod: (asset?: Scoping<`0x${string}`>, until?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      setUserEMode: (categoryId?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      setUserEModeOnBehalfOf: (categoryId?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "setUserUseReserveAsCollateral(bytes32)": (args?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "setUserUseReserveAsCollateral(address,bool)": (asset?: Scoping<`0x${string}`>, useAsCollateral?: Scoping<boolean>, options?: Options) => FunctionPermission;
+      setUserUseReserveAsCollateralOnBehalfOf: (asset?: Scoping<`0x${string}`>, useAsCollateral?: Scoping<boolean>, onBehalfOf?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "supply(address,uint256,address,uint16)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, referralCode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      "supply(bytes32)": (args?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "supplyWithPermit(address,uint256,address,uint16,uint256,uint8,bytes32,bytes32)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, referralCode?: Scoping<import("ethers").BigNumberish>, deadline?: Scoping<import("ethers").BigNumberish>, permitV?: Scoping<import("ethers").BigNumberish>, permitR?: Scoping<`0x${string}`>, permitS?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "supplyWithPermit(bytes32,bytes32,bytes32)": (args?: Scoping<`0x${string}`>, r?: Scoping<`0x${string}`>, s?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      syncIndexesState: (asset?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      syncRatesState: (asset?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      updateFlashloanPremium: (flashLoanPremium?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      "withdraw(address,uint256,address)": (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, to?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      "withdraw(bytes32)": (args?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+    };
+    aave_v3_rewards_controller: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      claimAllRewards: (assets?: Scoping<readonly (`0x${string}`)[]>, to?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      claimAllRewardsOnBehalf: (assets?: Scoping<readonly (`0x${string}`)[]>, user?: Scoping<`0x${string}`>, to?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      claimAllRewardsToSelf: (assets?: Scoping<readonly (`0x${string}`)[]>, options?: Options) => FunctionPermission;
+      claimRewards: (assets?: Scoping<readonly (`0x${string}`)[]>, amount?: Scoping<import("ethers").BigNumberish>, to?: Scoping<`0x${string}`>, reward?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      claimRewardsOnBehalf: (assets?: Scoping<readonly (`0x${string}`)[]>, amount?: Scoping<import("ethers").BigNumberish>, user?: Scoping<`0x${string}`>, to?: Scoping<`0x${string}`>, reward?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      claimRewardsToSelf: (assets?: Scoping<readonly (`0x${string}`)[]>, amount?: Scoping<import("ethers").BigNumberish>, reward?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      configureAssets: (config?: Scoping<readonly ({ emissionPerSecond: import("ethers").BigNumberish; totalSupply: import("ethers").BigNumberish; distributionEnd: import("ethers").BigNumberish; asset: `0x${string}`; reward: `0x${string}`; transferStrategy: `0x${string}`; rewardOracle: `0x${string}` })[]>, options?: Options) => FunctionPermission;
+      handleAction: (user?: Scoping<`0x${string}`>, totalSupply?: Scoping<import("ethers").BigNumberish>, userBalance?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      initialize: (arg0?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      setClaimer: (user?: Scoping<`0x${string}`>, caller?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      setDistributionEnd: (asset?: Scoping<`0x${string}`>, reward?: Scoping<`0x${string}`>, newDistributionEnd?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      setEmissionPerSecond: (asset?: Scoping<`0x${string}`>, rewards?: Scoping<readonly (`0x${string}`)[]>, newEmissionsPerSecond?: Scoping<readonly (import("ethers").BigNumberish)[]>, options?: Options) => FunctionPermission;
+      setRewardOracle: (reward?: Scoping<`0x${string}`>, rewardOracle?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      setTransferStrategy: (reward?: Scoping<`0x${string}`>, transferStrategy?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+    };
+    aave_v3_variable_debt_token: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      approve: (arg0?: Scoping<`0x${string}`>, arg1?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      approveDelegation: (delegatee?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      burn: (from?: Scoping<`0x${string}`>, scaledAmount?: Scoping<import("ethers").BigNumberish>, index?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      decreaseAllowance: (arg0?: Scoping<`0x${string}`>, arg1?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      delegationWithSig: (delegator?: Scoping<`0x${string}`>, delegatee?: Scoping<`0x${string}`>, value?: Scoping<import("ethers").BigNumberish>, deadline?: Scoping<import("ethers").BigNumberish>, v?: Scoping<import("ethers").BigNumberish>, r?: Scoping<`0x${string}`>, s?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      increaseAllowance: (arg0?: Scoping<`0x${string}`>, arg1?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      initialize: (initializingPool?: Scoping<`0x${string}`>, underlyingAsset?: Scoping<`0x${string}`>, debtTokenDecimals?: Scoping<import("ethers").BigNumberish>, debtTokenName?: Scoping<string>, debtTokenSymbol?: Scoping<string>, params?: Scoping<import("ethers").BytesLike>, options?: Options) => FunctionPermission;
+      mint: (user?: Scoping<`0x${string}`>, onBehalfOf?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, scaledAmount?: Scoping<import("ethers").BigNumberish>, index?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      renounceAllowance: (arg0?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      renounceDelegation: (delegator?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      transfer: (arg0?: Scoping<`0x${string}`>, arg1?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      transferFrom: (arg0?: Scoping<`0x${string}`>, arg1?: Scoping<`0x${string}`>, arg2?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+    };
+    aave_v3_wrapped_token_gateway: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      borrowETH: (arg0?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, referralCode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      depositETH: (arg0?: Scoping<`0x${string}`>, onBehalfOf?: Scoping<`0x${string}`>, referralCode?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      emergencyEtherTransfer: (to?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      emergencyTokenTransfer: (token?: Scoping<`0x${string}`>, to?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      renounceOwnership: (options?: Options) => FunctionPermission;
+      repayETH: (arg0?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, onBehalfOf?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      transferOwnership: (newOwner?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      withdrawETH: (arg0?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, to?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      withdrawETHWithPermit: (arg0?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, to?: Scoping<`0x${string}`>, deadline?: Scoping<import("ethers").BigNumberish>, permitV?: Scoping<import("ethers").BigNumberish>, permitR?: Scoping<`0x${string}`>, permitS?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+    };
     erc20: {
       [EVERYTHING]: (options?: Options) => TargetPermission;
       transfer: (to?: Scoping<`0x${string}`>, value?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;

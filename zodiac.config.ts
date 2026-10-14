@@ -13,6 +13,10 @@ const ABI_ONLY = '0x0000000000000000000000000000000000000000'
 export default defineConfig({
   contracts: {
     any: {
+      aave_v3_pool: ABI_ONLY,
+      aave_v3_rewards_controller: ABI_ONLY,
+      aave_v3_variable_debt_token: ABI_ONLY,
+      aave_v3_wrapped_token_gateway: ABI_ONLY,
       erc20: ABI_ONLY,
       erc4626: ABI_ONLY,
       morpho_vault_bundles_v1: ABI_ONLY,

@@ -41,6 +41,7 @@
     "ethers": "^6.13.0"
   },
   "devDependencies": {
+    "@bgd-labs/aave-address-book": "^4.44.22",
     "@morpho-org/morpho-ts": "^4.0.0",
     "@types/bun": "^1.2.21",
     "@zodiaceco/sdk": "^2.7.0",
