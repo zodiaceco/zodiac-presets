@@ -43,6 +43,7 @@
   "devDependencies": {
     "@morpho-org/morpho-ts": "^4.0.0",
     "@types/bun": "^1.2.21",
+    "@uniswap/sdk-core": "^7.19.4",
     "@zodiaceco/sdk": "^2.7.0",
     "defi-kit": "2.27.1",
     "ethers": "^6.13.0",
