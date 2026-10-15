@@ -7,6 +7,19 @@ export {
   type AaveMarket,
   type AaveParams,
 } from './aave'
+export {
+  derive,
+  DERIVE,
+  DERIVE_ASSETS,
+  DERIVE_SCOPE,
+  DERIVE_SCOPES,
+  type DeriveAsset,
+  type DeriveChain,
+  type DeriveDepositParams,
+  type DeriveDepositToken,
+  type DeriveSessionKeysParams,
+  type DeriveWithdrawParams,
+} from './derive'
 export { fluid, F_TOKENS, type FluidChain, type FluidParams } from './fluid'
 export {
   morpho,

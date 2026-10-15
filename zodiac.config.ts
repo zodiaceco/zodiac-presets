@@ -17,6 +17,7 @@ export default defineConfig({
       aave_v3_rewards_controller: ABI_ONLY,
       aave_v3_variable_debt_token: ABI_ONLY,
       aave_v3_wrapped_token_gateway: ABI_ONLY,
+      derive_onchain_action_manager: ABI_ONLY,
       erc20: ABI_ONLY,
       erc4626: ABI_ONLY,
       fluid_ftoken_native: ABI_ONLY,
