@@ -45,6 +45,13 @@ positions the avatar holds.
 | `derive.revokeSessionKeys` | Delete any of the avatar's session keys.                                                                                                                                 |
 | `fluid.deposit`            | Supply tokens (or the native token) to their Fluid fTokens.                                                                                                              |
 | `fluid.withdraw`           | Withdraw them again.                                                                                                                                                     |
+| `gmx.trade`                | Open and close positions in listed GMX markets through the SubaccountRouter, with caps on collateral, size and the execution fee. No swaps, no callbacks.                |
+| `gmx.ownSubaccount`        | Register the avatar as its own GMX subaccount, which `gmx.trade` needs, with an expiry and action-count cap.                                                             |
+| `gmx.deposit`              | Deposit tokens into listed GM markets and GLVs, every token transfer within an allowance.                                                                                |
+| `gmx.withdraw`             | Withdraw from listed GM markets and GLVs to the avatar, every pool-token transfer within an allowance.                                                                   |
+| `gmx.tradingKeys`          | Register EOAs as GMX subaccounts (one-click trading): listed keys, expiry, lifetime action count and gas top-up caps.                                                    |
+| `gmx.revoke`               | Remove any subaccount, cancel orders and set Router approvals to 0.                                                                                                      |
+| `gmx.claim`                | Claim funding fees, claimable collateral and GMX distributions to the avatar.                                                                                            |
 | `morpho.deposit`           | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does.                              |
 | `morpho.withdraw`          | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                                                          |
 | `pendle.buyPt`             | Buy Pendle PT in listed markets with listed tokens, straight into the SY (no aggregator, no limit-order fills), with an optional allowance per token.                    |
@@ -65,6 +72,7 @@ Without a `label`, each preset derives one from its inputs.
 | Aave v3    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`                                                                       |
 | Derive V3  | Ethereum                                                                                                                                        | `DERIVE` and `DERIVE_ASSETS` in `src/derive/index.ts`, read on chain with `WithdrawalOutbox.resolveAsset`                                    |
 | Fluid      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`                                                                      |
+| GMX v2     | Arbitrum, Avalanche, MegaETH                                                                                                                    | `GMX` in `src/gmx/index.ts`, read on chain; `bun test:sim` checks it against GMX's RoleStore                                                 |
 | Morpho     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts`                                                                    |
 | Pendle V2  | Ethereum, Optimism, BNB, Unichain, Sonic, HyperEVM, Mantle, Base, Plasma, Arbitrum, Berachain                                                   | `PENDLE` in `src/pendle/chains.ts`, from Pendle's deployments, routers checked on chain by `bun sync:pendle`; markets from `pendleMarkets()` |
 | Uniswap v3 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`                                                                       |
@@ -72,6 +80,19 @@ Without a `label`, each preset derives one from its inputs.
 Morpho pins VaultBundlesV1's referral fee to zero and, without a `label`, looks
 up the vaults' names on the [Morpho API](https://api.morpho.org/graphql). The
 other presets make no network calls.
+
+GMX executes requests later, through keepers, and a GMX vault credits its
+tokens to the next request that asks for them, from any account. Roles v2
+can't check the GMX interface's multicall call by call (all elements of an
+array must have the same type tree), so `gmx.trade` goes through
+`SubaccountRouter.createOrder`, which pulls the collateral and creates the
+order in one call, with the avatar registered as its own subaccount
+(`gmx.ownSubaccount`). GM and GLV have no such call: `gmx.deposit` and
+`gmx.withdraw` allow the token transfers as separate calls, so each one needs
+an allowance, which is the most a member can strand in a vault. Trading keys
+(`gmx.tradingKeys`) trade without Roles: GMX forces their receiver to the
+avatar, but they pick market, size and leverage, and pull collateral through
+the avatar's Router approval.
 
 Derive trades off chain: an EOA session key signs the orders, so the Derive
 presets bound the keys, not the orders. `derive.sessionKeys` refuses scopes

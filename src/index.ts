@@ -22,6 +22,20 @@ export {
 } from './derive'
 export { fluid, F_TOKENS, type FluidChain, type FluidParams } from './fluid'
 export {
+  gmx,
+  GMX,
+  GMX_UI_FEE_RECEIVER,
+  type GmxChain,
+  type GmxCollateral,
+  type GmxDepositParams,
+  type GmxGlv,
+  type GmxOwnSubaccountParams,
+  type GmxPool,
+  type GmxTradeParams,
+  type GmxTradingKeysParams,
+  type GmxWithdrawParams,
+} from './gmx'
+export {
   morpho,
   VAULT_BUNDLES_V1,
   type MorphoChain,
