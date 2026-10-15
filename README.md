@@ -47,18 +47,27 @@ positions the avatar holds.
 | `fluid.withdraw`           | Withdraw them again.                                                                                                                                                     |
 | `morpho.deposit`           | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does.                              |
 | `morpho.withdraw`          | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                                                          |
+| `pendle.buyPt`             | Buy Pendle PT in listed markets with listed tokens, straight into the SY (no aggregator, no limit-order fills), with an optional allowance per token.                    |
+| `pendle.sellPt`            | Sell PT for tokens the SY pays out, to the avatar.                                                                                                                       |
+| `pendle.redeem`            | Redeem PT (after the expiry, PT alone) for tokens the SY pays out, to the avatar; for markets already expired also the exit Pendle's app uses (PT and LP in one call).   |
+| `pendle.addLiquidity`      | Add liquidity to listed markets with listed tokens, LP to the avatar.                                                                                                    |
+| `pendle.removeLiquidity`   | Remove liquidity, before or after the expiry, to the avatar.                                                                                                             |
+| `pendle.buyYt`             | Buy YT in listed markets with listed tokens.                                                                                                                             |
+| `pendle.sellYt`            | Sell YT for tokens the SY pays out, to the avatar.                                                                                                                       |
+| `pendle.claim`             | Claim YT interest and SY and LP rewards, paid to the avatar.                                                                                                             |
 | `uniswap.deposit`          | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                                                     |
 | `uniswap.withdraw`         | Remove liquidity and collect fees from the avatar's positions.                                                                                                           |
 
 Without a `label`, each preset derives one from its inputs.
 
-| Protocol   | Chains                                                                                                                                          | Addresses                                                                                                 |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Aave v3    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`                                    |
-| Derive V3  | Ethereum                                                                                                                                        | `DERIVE` and `DERIVE_ASSETS` in `src/derive/index.ts`, read on chain with `WithdrawalOutbox.resolveAsset` |
-| Fluid      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`                                   |
-| Morpho     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts`                                 |
-| Uniswap v3 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`                                    |
+| Protocol   | Chains                                                                                                                                          | Addresses                                                                                                                                    |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aave v3    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`                                                                       |
+| Derive V3  | Ethereum                                                                                                                                        | `DERIVE` and `DERIVE_ASSETS` in `src/derive/index.ts`, read on chain with `WithdrawalOutbox.resolveAsset`                                    |
+| Fluid      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`                                                                      |
+| Morpho     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts`                                                                    |
+| Pendle V2  | Ethereum, Optimism, BNB, Unichain, Sonic, HyperEVM, Mantle, Base, Plasma, Arbitrum, Berachain                                                   | `PENDLE` in `src/pendle/chains.ts`, from Pendle's deployments, routers checked on chain by `bun sync:pendle`; markets from `pendleMarkets()` |
+| Uniswap v3 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`                                                                       |
 
 Morpho pins VaultBundlesV1's referral fee to zero and, without a `label`, looks
 up the vaults' names on the [Morpho API](https://api.morpho.org/graphql). The
@@ -70,6 +79,46 @@ that hand out funds or rights (admin, transfers to other owners, child keys,
 liquidations, curator rights) and gives each key exactly one subaccount, since
 an empty list means every subaccount. Withdrawals only ever pay the avatar, and
 a Safe-owned account's withdrawal whitelist stays empty, so keys can't pay out.
+
+Pendle markets expire, so the Pendle presets take them as a parameter.
+`pendleMarkets()` reads them from Pendle's API, by name among the active ones
+or by address (expired ones too, to redeem):
+
+```ts
+import { pendle, pendleMarkets } from '@zodiaceco/presets'
+
+const USDE = '0x4c9EDD5852cd905f086C759E8383e09bff1E68B3'
+const SUSDE = '0x9D39A5DE30e57443BfF2A8307A4256c8797A3497'
+const markets = await pendleMarkets({ chain: 1, names: ['sUSDe'] })
+
+export default [
+  pendle.buyPt({
+    chain: 1,
+    markets,
+    tokens: [{ token: USDE, allowance: 'pendle_usde' }, { token: SUSDE }],
+  }),
+  pendle.sellPt({ chain: 1, markets, tokens: [SUSDE] }),
+  pendle.redeem({ chain: 1, markets, tokens: [SUSDE] }),
+] satisfies Permissions
+```
+
+Keep a market in the list until the avatar holds none of its PT, YT or LP:
+after the expiry, swaps revert, `pendle.redeem` takes PT alone and
+`pendle.removeLiquidity` still works. The presets pay tokens into the SY
+directly (the chain's wrapped native token may also be unwrapped first, the
+way Pendle's own API pays WETH into an SY that takes ETH) and refuse
+aggregator routes and limit-order fills. Pendle's Convert API
+(`/core/v2/sdk/<chain>/convert`) builds calls they accept with
+`enableAggregator=false&useLimitOrder=false`; with its default
+`useLimitOrder=true` it fills limit orders, which the presets refuse. In a
+recording from October 2026, app.pendle.finance filled limit orders whenever
+its order book matched the trade, with no setting to turn that off, and took
+an aggregator route when that paid more, even for a token the SY takes, until
+all four aggregators were unticked in its settings. To redeem after the expiry
+it called `exitPostExpToToken`. That function doesn't check the expiry, and
+before it, it leaves PT in the YT contract for whoever redeems next, so
+`pendle.redeem` allows it only for markets that had expired when the preset
+was built: build it again after a market expires.
 
 ## Adding a preset
 

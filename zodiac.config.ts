@@ -22,6 +22,7 @@ export default defineConfig({
       erc4626: ABI_ONLY,
       fluid_ftoken_native: ABI_ONLY,
       morpho_vault_bundles_v1: ABI_ONLY,
+      pendle_router: ABI_ONLY,
       uniswap_v3_position_manager: ABI_ONLY,
     },
   },

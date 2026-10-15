@@ -29,6 +29,18 @@ export {
   type MorphoWithdrawParams,
 } from './morpho'
 export {
+  pendle,
+  PENDLE,
+  PENDLE_API,
+  pendleMarkets,
+  type PendleChain,
+  type PendleClaimParams,
+  type PendleInParams,
+  type PendleMarket,
+  type PendleOutParams,
+  type PendleTokenIn,
+} from './pendle'
+export {
   POSITION_MANAGER,
   uniswap,
   type UniswapChain,
