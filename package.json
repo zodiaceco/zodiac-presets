@@ -34,6 +34,8 @@
     "check:format": "prettier --list-different .",
     "check:types": "tsc -p tsconfig.json",
     "fix:format": "prettier --write .",
+    "sync:fluid": "bun scripts/sync-fluid.ts",
+    "check:fluid": "bun scripts/sync-fluid.ts --check",
     "test": "bun test"
   },
   "peerDependencies": {

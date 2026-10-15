@@ -15,6 +15,7 @@ export default defineConfig({
     any: {
       erc20: ABI_ONLY,
       erc4626: ABI_ONLY,
+      fluid_ftoken_native: ABI_ONLY,
       morpho_vault_bundles_v1: ABI_ONLY,
     },
   },
