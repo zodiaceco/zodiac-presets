@@ -30,17 +30,34 @@ permissions file is an ES module, so top-level `await` works there.
 
 ## Presets
 
-| Preset            | What it allows                                                                                                                                                       |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `morpho.deposit`  | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. Shares go to the avatar. |
-| `morpho.withdraw` | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1. Assets go to the avatar.                                                             |
+Each protocol is one object, `<protocol>.<preset>`. Every receiver, owner and
+`onBehalfOf` is pinned to the avatar, so funds only ever move in and out of
+positions the avatar holds.
 
-Both pin VaultBundlesV1's referral fee to zero. Without a `label`, they look up
-the vaults' names on the [Morpho API](https://api.morpho.org/graphql). They
-cover every chain where both Morpho and Zodiac are deployed: Ethereum,
-Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum and Katana
-(`VAULT_BUNDLES_V1` in `src/morpho/index.ts`, checked against Morpho's own registry
-in `@morpho-org/morpho-ts`).
+| Preset             | What it allows                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `aave.deposit`     | Supply tokens (or the native token, through the gateway) to an Aave v3 market and use them as collateral.                                   |
+| `aave.withdraw`    | Withdraw supplied tokens and claim rewards.                                                                                                 |
+| `aave.borrow`      | Borrow and repay tokens.                                                                                                                    |
+| `fluid.deposit`    | Supply tokens (or the native token) to their Fluid fTokens.                                                                                 |
+| `fluid.withdraw`   | Withdraw them again.                                                                                                                        |
+| `morpho.deposit`   | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. |
+| `morpho.withdraw`  | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                             |
+| `uniswap.deposit`  | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                        |
+| `uniswap.withdraw` | Remove liquidity and collect fees from the avatar's positions.                                                                              |
+
+Without a `label`, each preset derives one from its inputs.
+
+| Protocol   | Chains                                                                                                                                          | Addresses                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Aave v3    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`    |
+| Fluid      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`   |
+| Morpho     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts` |
+| Uniswap v3 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`    |
+
+Morpho pins VaultBundlesV1's referral fee to zero and, without a `label`, looks
+up the vaults' names on the [Morpho API](https://api.morpho.org/graphql). The
+other presets make no network calls.
 
 ## Adding a preset
 
