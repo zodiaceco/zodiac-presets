@@ -59,9 +59,10 @@ positions the avatar holds.
 | `pendle.redeem`            | Redeem PT (after the expiry, PT alone) for tokens the SY pays out, to the avatar; for markets already expired also the exit Pendle's app uses (PT and LP in one call).   |
 | `pendle.addLiquidity`      | Add liquidity to listed markets with listed tokens, LP to the avatar.                                                                                                    |
 | `pendle.removeLiquidity`   | Remove liquidity, before or after the expiry, to the avatar.                                                                                                             |
+| `pendle.exit`              | Exit PT, YT and LP in one call before the expiry, the default of the app's Withdraw tab: burn LP, redeem PT and YT in pairs, sell the rest, pay the avatar.              |
 | `pendle.buyYt`             | Buy YT in listed markets with listed tokens.                                                                                                                             |
 | `pendle.sellYt`            | Sell YT for tokens the SY pays out, to the avatar.                                                                                                                       |
-| `pendle.claim`             | Claim YT interest and SY and LP rewards, paid to the avatar.                                                                                                             |
+| `pendle.claim`             | Claim YT interest and SY and LP rewards, paid to the avatar, also the way the app claims (V2, YT interest paid out as a token, no swaps).                                |
 | `uniswap.deposit`          | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                                                     |
 | `uniswap.withdraw`         | Remove liquidity and collect fees from the avatar's positions.                                                                                                           |
 
@@ -135,11 +136,14 @@ aggregator routes and limit-order fills. Pendle's Convert API
 recording from October 2026, app.pendle.finance filled limit orders whenever
 its order book matched the trade, with no setting to turn that off, and took
 an aggregator route when that paid more, even for a token the SY takes, until
-all four aggregators were unticked in its settings. To redeem after the expiry
-it called `exitPostExpToToken`. That function doesn't check the expiry, and
-before it, it leaves PT in the YT contract for whoever redeems next, so
-`pendle.redeem` allows it only for markets that had expired when the preset
-was built: build it again after a market expires.
+all four aggregators were unticked in its settings. Its Withdraw tab exits PT,
+YT and LP with `exitPreExpToToken` and claims in the same `multicall`. Roles
+can't scope the calls inside a multicall, so a member needs Zodiac Pilot to
+unfold it into its calls, which `pendle.exit` and `pendle.claim` allow. To
+redeem after the expiry it called `exitPostExpToToken`. That function doesn't
+check the expiry, and before it, it leaves PT in the YT contract for whoever
+redeems next, so `pendle.redeem` allows it only for markets that had expired
+when the preset was built: build it again after a market expires.
 
 ## Adding a preset
 

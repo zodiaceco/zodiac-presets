@@ -27,7 +27,8 @@ import app from './app-calls.json'
 // call that would hand funds to someone else, route through an aggregator or
 // fill a limit order stops at the Roles mod. Calls recorded from
 // app.pendle.finance (`app-calls.json`) get the outcome their content calls
-// for. Run with `bun test:sim`; it also asks Pendle's API for the markets and
+// for, with the router's multicall unfolded into its calls as Zodiac Pilot
+// does. Run with `bun test:sim`; it also asks Pendle's API for the markets and
 // for the Convert API calls.
 
 const RPC = process.env.RPC_1 ?? 'https://ethereum-rpc.publicnode.com'
@@ -149,12 +150,43 @@ const exit = (
   out: object,
   receiver: string = AVATAR
 ) => call('exitPostExpToToken', [receiver, market, netPtIn, netLpIn, out])
+const exitPreExp = (
+  market: string,
+  [netPtIn, netYtIn, netLpIn]: [bigint, bigint, bigint],
+  out: object,
+  o: { receiver?: string; limit?: object } = {}
+) =>
+  call('exitPreExpToToken', [
+    o.receiver ?? AVATAR,
+    market,
+    netPtIn,
+    netYtIn,
+    netLpIn,
+    out,
+    o.limit ?? limit(),
+  ])
 const addLp = (market: string, inp: object, receiver: string = AVATAR) =>
   call('addLiquiditySingleToken', [receiver, market, 0, APPROX, inp, limit()])
 const removeLp = (market: string, amount: bigint, out: object) =>
   call('removeLiquiditySingleToken', [AVATAR, market, amount, out, limit()])
 const claim = (user: string, sys: string[], yts: string[], markets: string[]) =>
   call('redeemDueInterestAndRewards', [user, sys, yts, markets])
+// The app's claim: `pendleSwap` set, no swaps
+const claimV2 = (
+  sys: string[],
+  yts: object[],
+  markets: string[],
+  swaps: object[] = []
+) =>
+  call('redeemDueInterestAndRewardsV2', [sys, yts, markets, PENDLE_SWAP, swaps])
+const ytIncome = (yt: string, o: object = {}) => ({
+  yt,
+  doRedeemInterest: true,
+  doRedeemRewards: true,
+  tokenRedeemSy: SUSDE,
+  minTokenRedeemOut: 0,
+  ...o,
+})
 const approve = (spender: string) =>
   erc20.encodeFunctionData('approve', [spender, MaxUint256])
 
@@ -211,35 +243,105 @@ const ONE_WEEK = 7n * 24n * 60n * 60n
 // the price limits of the recording's block, so an allowed one only has to
 // pass the Roles mod: Pendle may revert it once the market has moved.
 const recordedSafe = app.safe.slice(2).toLowerCase()
-const PT_FUNCTIONS = [
+// The router functions the app's role allows
+const APP_FUNCTIONS = [
   'swapExactTokenForPt',
   'swapExactPtForToken',
   'redeemPyToToken',
   'exitPostExpToToken',
+  'exitPreExpToToken',
+  'redeemDueInterestAndRewardsV2',
 ]
 const fromApp = (flow: string) =>
   app.calls
     .filter((c) => c.flow === flow)
-    .map(({ to, data }) => {
+    .flatMap(({ to, data }) => {
       const call = data.replaceAll(recordedSafe, AVATAR.slice(2).toLowerCase())
-      if (getAddress(to) !== ROUTER) return { to, data: call, about: 'approve' }
+      if (getAddress(to) !== ROUTER)
+        return [{ to, data: call, about: 'approve', plain: false }]
       const { name, args } = router.parseTransaction({ data: call })!
-      const swap = args.input ?? args.output
-      const fills = args.limit
-        ? args.limit.normalFills.length + args.limit.flashFills.length
-        : 0
-      const aggregator = swap.pendleSwap !== ZERO
-      return {
-        to,
-        data: call,
-        about: `${name}${fills ? `, ${fills} limit fills` : ''}${aggregator ? `, swap type ${swap.swapData.swapType} through pendleSwap` : ''}`,
-        plain: PT_FUNCTIONS.includes(name) && fills === 0 && !aggregator,
-      }
+      // Roles can't scope the calls inside a multicall; Pilot unfolds it
+      const calls: string[] =
+        name === 'multicall'
+          ? args.calls.map((c: { callData: string }) => c.callData)
+          : [call]
+      return calls.map((data) => ({ to, data, ...describeAppCall(data) }))
     })
+const describeAppCall = (data: string) => {
+  const { name, args } = router.parseTransaction({ data })!
+  const swap = args.input ?? args.output
+  const fills = args.limit
+    ? args.limit.normalFills.length + args.limit.flashFills.length
+    : 0
+  // A TokenInput or TokenOutput through pendleSwap, or a claim's swaps
+  const aggregator = swap
+    ? swap.pendleSwap !== ZERO
+    : (args.swaps?.length ?? 0) > 0
+  return {
+    about: `${name}${fills ? `, ${fills} limit fills` : ''}${aggregator ? `, ${swap ? `swap type ${swap.swapData.swapType}` : 'swaps'} through pendleSwap` : ''}`,
+    plain: APP_FUNCTIONS.includes(name) && fills === 0 && !aggregator,
+  }
+}
 
 type PendleCase = Case & {
   refusedBy?: 'roles' | 'pendle'
   recorded?: boolean
+}
+
+const allowed = (
+  label: string,
+  role: string,
+  to: string,
+  data: string
+): PendleCase => ({ label, role, to: to as Address, data, allowed: true })
+const refused =
+  (refusedBy: 'roles' | 'pendle') =>
+  (label: string, role: string, to: string, data: string): PendleCase => ({
+    label,
+    role,
+    to: to as Address,
+    data,
+    allowed: false,
+    refusedBy,
+  })
+const roles = refused('roles')
+const byPendle = refused('pendle')
+// A recorded flow for `role`: approvals and calls without fills or
+// aggregators are allowed, the rest refused by the Roles mod
+const fromAppCase =
+  (role: string, label: string) =>
+  (c: ReturnType<typeof fromApp>[number]): PendleCase =>
+    c.about === 'approve'
+      ? allowed(`App: ${label}, approve`, role, c.to, c.data)
+      : c.plain
+        ? {
+            ...allowed(`App: ${label} (${c.about})`, role, c.to, c.data),
+            recorded: true,
+          }
+        : roles(`App: ${label} (${c.about})`, role, c.to, c.data)
+
+type Simulated = Awaited<ReturnType<typeof simulate>>
+
+const report = ({ block, failedSetup, cases: results }: Simulated) => {
+  console.log(`Ethereum block ${block}`)
+  type Result = (typeof results)[number] & PendleCase
+  const wrongReason = (c: Result) =>
+    !c.allowed &&
+    (c.refusedBy === 'roles'
+      ? !c.detail.startsWith('ConditionViolation')
+      : c.detail !== 'ModuleTransactionFailed')
+  // An allowed recorded call runs, or passes the Roles mod and reverts in Pendle
+  const failed = (c: Result) =>
+    c.recorded
+      ? !['executed', 'ModuleTransactionFailed'].includes(c.detail)
+      : !c.passed || wrongReason(c)
+  for (const c of results as Result[]) {
+    console.log(
+      `${failed(c) ? 'FAIL' : 'ok  '} ${c.allowed ? 'allowed' : `refused (${c.refusedBy})`.padEnd(17)}  ${c.role.padEnd(11)} ${c.label.padEnd(62)} ${c.detail}`
+    )
+  }
+  expect(failedSetup).toEqual([])
+  expect((results as Result[]).filter(failed)).toEqual([])
 }
 
 describe.skipIf(!simulationEnabled)('pendle presets on mainnet state', () => {
@@ -290,41 +392,7 @@ describe.skipIf(!simulationEnabled)('pendle presets on mainnet state', () => {
       // USDe allowance: 50,000 a week. The allowed cases before the allowance
       // cases use 10,000 (PT) and 1,000 (YT), so 39,000 are left.
       const USDE_LEFT = e18(39_000n)
-      const allowed = (
-        label: string,
-        role: string,
-        to: string,
-        data: string
-      ): PendleCase => ({ label, role, to: to as Address, data, allowed: true })
-      const refused =
-        (refusedBy: 'roles' | 'pendle') =>
-        (
-          label: string,
-          role: string,
-          to: string,
-          data: string
-        ): PendleCase => ({
-          label,
-          role,
-          to: to as Address,
-          data,
-          allowed: false,
-          refusedBy,
-        })
-      const roles = refused('roles')
-      const byPendle = refused('pendle')
       const APP = 'pendle_app'
-      const fromAppCase =
-        (label: string) =>
-        (c: ReturnType<typeof fromApp>[number]): PendleCase =>
-          c.about === 'approve'
-            ? allowed(`App: ${label}, approve`, APP, c.to, c.data)
-            : c.plain
-              ? {
-                  ...allowed(`App: ${label} (${c.about})`, APP, c.to, c.data),
-                  recorded: true,
-                }
-              : roles(`App: ${label} (${c.about})`, APP, c.to, c.data)
 
       const cases: PendleCase[] = [
         // PT: approvals, then calls from Pendle's Convert API, then calls built here
@@ -755,30 +823,26 @@ describe.skipIf(!simulationEnabled)('pendle presets on mainnet state', () => {
         // aggregator when its quote is better, exitPostExpToToken to redeem
         // after the expiry
         ...fromApp('buy_pt_1000_susde').map(
-          fromAppCase('buy PT with 1,000 sUSDe')
+          fromAppCase(APP, 'buy PT with 1,000 sUSDe')
         ),
         ...fromApp('buy_pt_200000_susde').map(
-          fromAppCase('buy PT with 200,000 sUSDe')
+          fromAppCase(APP, 'buy PT with 200,000 sUSDe')
         ),
         ...fromApp('sell_pt_1000_susde').map(
-          fromAppCase('sell 1,000 PT for sUSDe')
+          fromAppCase(APP, 'sell 1,000 PT for sUSDe')
         ),
         ...fromApp('redeem_expired_pt_1000').map(
-          fromAppCase('redeem 1,000 expired PT')
+          fromAppCase(APP, 'redeem 1,000 expired PT')
         ),
         ...fromApp('buy_pt_10000_usde').map(
-          fromAppCase('buy PT with 10,000 USDe')
+          fromAppCase(APP, 'buy PT with 10,000 USDe')
         ),
         ...fromApp('buy_pt_10000_usde_no_aggregators').map(
-          fromAppCase('aggregators off, buy PT with 10,000 USDe')
+          fromAppCase(APP, 'aggregators off, buy PT with 10,000 USDe')
         ),
       ]
 
-      const {
-        block,
-        failedSetup,
-        cases: results,
-      } = await simulate({
+      const simulated = await simulate({
         rpc: RPC,
         roles: {
           [PT]: [
@@ -839,25 +903,175 @@ describe.skipIf(!simulationEnabled)('pendle presets on mainnet state', () => {
         cases,
       })
 
-      console.log(`Ethereum block ${block}`)
-      type Result = (typeof results)[number] & PendleCase
-      const wrongReason = (c: Result) =>
-        !c.allowed &&
-        (c.refusedBy === 'roles'
-          ? !c.detail.startsWith('ConditionViolation')
-          : c.detail !== 'ModuleTransactionFailed')
-      // An allowed recorded call runs, or passes the Roles mod and reverts in Pendle
-      const failed = (c: Result) =>
-        c.recorded
-          ? !['executed', 'ModuleTransactionFailed'].includes(c.detail)
-          : !c.passed || wrongReason(c)
-      for (const c of results as Result[]) {
-        console.log(
-          `${failed(c) ? 'FAIL' : 'ok  '} ${c.allowed ? 'allowed' : `refused (${c.refusedBy})`.padEnd(17)}  ${c.role.padEnd(10)} ${c.label.padEnd(62)} ${c.detail}`
-        )
-      }
-      expect(failedSetup).toEqual([])
-      expect((results as Result[]).filter(failed)).toEqual([])
+      report(simulated)
+    },
+    { timeout: 180_000 }
+  )
+
+  // A run of its own: the Roles mod's setup and the cases above already use
+  // most of the gas an RPC grants one eth_simulateV1 call (50M on geth).
+  it(
+    "allow the app's exit before the expiry and its claim, and block the rest",
+    async () => {
+      const [sUsdeNov26] = await pendleMarkets({
+        chain: 1,
+        addresses: [SUSDE_NOV26],
+      })
+      const params = { chain: 1 as const, markets: [sUsdeNov26!] }
+      const EXIT = 'pendle_exit'
+      const LP = 'pendle_lp'
+
+      const cases: PendleCase[] = [
+        // The app's Withdraw tab with its defaults: PT, YT and LP ticked,
+        // "Claim LP and YT Rewards" on
+        ...fromApp('exit_all_claim').map(
+          fromAppCase(EXIT, 'exit 5,000 PT, 5,000 YT and 1,000 LP, claim on')
+        ),
+        // Built here
+        ...[SUSDE_NOV26, sUsdeNov26!.pt, sUsdeNov26!.yt].map((token, i) =>
+          allowed(
+            `approve ${['LP', 'PT', 'YT'][i]} sUSDe Nov 2026`,
+            EXIT,
+            token,
+            approve(ROUTER)
+          )
+        ),
+        allowed(
+          'exit 100 PT, 100 YT and 10 LP before the expiry',
+          EXIT,
+          ROUTER,
+          exitPreExp(
+            SUSDE_NOV26,
+            [e18(100n), e18(100n), e18(10n)],
+            output(SUSDE)
+          )
+        ),
+        allowed(
+          'exit 50 PT alone, sold on the market',
+          EXIT,
+          ROUTER,
+          exitPreExp(SUSDE_NOV26, [e18(50n), 0n, 0n], output(SUSDE))
+        ),
+        allowed(
+          'claim LP rewards through V2, as the app does',
+          EXIT,
+          ROUTER,
+          claimV2([], [], [SUSDE_NOV26])
+        ),
+        allowed('approve SY sUSDe', EXIT, sUsdeNov26!.sy, approve(ROUTER)),
+        allowed(
+          'claim YT interest and SY rewards through V2, paid as sUSDe',
+          EXIT,
+          ROUTER,
+          claimV2([sUsdeNov26!.sy], [ytIncome(sUsdeNov26!.yt)], [SUSDE_NOV26])
+        ),
+        roles(
+          'exit for a stranger',
+          EXIT,
+          ROUTER,
+          exitPreExp(SUSDE_NOV26, [e18(1n), e18(1n), 0n], output(SUSDE), {
+            receiver: STRANGER,
+          })
+        ),
+        roles(
+          'exit an unlisted market',
+          EXIT,
+          ROUTER,
+          exitPreExp(UNLISTED_MARKET, [e18(1n), e18(1n), 0n], output(SUSDE))
+        ),
+        roles(
+          'exit through an aggregator',
+          EXIT,
+          ROUTER,
+          exitPreExp(
+            SUSDE_NOV26,
+            [e18(1n), e18(1n), 0n],
+            output(SUSDE, { pendleSwap: PENDLE_SWAP, swapData: AGGREGATOR })
+          )
+        ),
+        roles(
+          'exit for an unlisted token (USDe)',
+          EXIT,
+          ROUTER,
+          exitPreExp(SUSDE_NOV26, [e18(1n), e18(1n), 0n], output(USDE))
+        ),
+        roles(
+          'exit filling a limit order',
+          EXIT,
+          ROUTER,
+          exitPreExp(SUSDE_NOV26, [e18(1n), 0n, 0n], output(SUSDE), {
+            limit: limit({ limitRouter: LIMIT_ROUTER, normalFills: [FILL] }),
+          })
+        ),
+        roles(
+          'claim through V2 with a swap through pendleSwap',
+          EXIT,
+          ROUTER,
+          claimV2(
+            [],
+            [],
+            [SUSDE_NOV26],
+            [
+              {
+                tokenIn: SUSDE,
+                tokenOut: USDC,
+                minOut: 0,
+                swapData: AGGREGATOR,
+              },
+            ]
+          )
+        ),
+        roles(
+          'claim through V2 from an unlisted market',
+          EXIT,
+          ROUTER,
+          claimV2([], [], [UNLISTED_MARKET])
+        ),
+        roles(
+          'claim interest of an unlisted YT through V2',
+          EXIT,
+          ROUTER,
+          claimV2([], [ytIncome(UNLISTED_YT)], [])
+        ),
+        roles(
+          'claim rewards of an unlisted SY through V2',
+          EXIT,
+          ROUTER,
+          claimV2([STRANGER], [], [])
+        ),
+        roles(
+          'LP role exits PT and YT',
+          LP,
+          ROUTER,
+          exitPreExp(SUSDE_NOV26, [e18(1n), e18(1n), 0n], output(SUSDE))
+        ),
+      ]
+
+      const simulated = await simulate({
+        rpc: RPC,
+        roles: {
+          [EXIT]: [
+            pendle.exit({ ...params, tokens: [SUSDE] }),
+            pendle.claim(params),
+          ],
+          [LP]: [pendle.removeLiquidity({ ...params, tokens: [SUSDE] })],
+        },
+        // balanceOf slots: PT and YT 0, market (LP) 3
+        stateOverrides: {
+          [sUsdeNov26!.pt]: {
+            stateDiff: { [balanceSlot(AVATAR, 0)]: word(e18(10_000n)) },
+          },
+          [sUsdeNov26!.yt]: {
+            stateDiff: { [balanceSlot(AVATAR, 0)]: word(e18(10_000n)) },
+          },
+          [SUSDE_NOV26]: {
+            stateDiff: { [balanceSlot(AVATAR, 3)]: word(e18(2_000n)) },
+          },
+        },
+        cases,
+      })
+
+      report(simulated)
     },
     { timeout: 180_000 }
   )

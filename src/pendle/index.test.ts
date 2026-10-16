@@ -41,7 +41,9 @@ const SELECTORS = {
   swapExactTokenForYt: '0xed48907e',
   swapExactYtForToken: '0x05eb5327',
   redeemDueInterestAndRewards: '0xf7e375e8',
+  redeemDueInterestAndRewardsV2: '0x0741a803',
   exitPostExpToToken: '0xf06a07a0',
+  exitPreExpToToken: '0x7036e052',
 }
 
 // Condition operators, from zodiac-roles-sdk
@@ -386,6 +388,66 @@ describe('pendle.redeem after the expiry', () => {
   })
 })
 
+describe('pendle.exit', () => {
+  const preset = () =>
+    pendle.exit({ chain: 1, markets: MARKETS, tokens: [SUSDE, USDE] })
+
+  it('approves LP, PT and YT to the router and exits before the expiry', () => {
+    expect(calls(preset())).toEqual([
+      ...MARKETS.flatMap((m) =>
+        [m.market, m.pt, m.yt].map((t) => [t.toLowerCase(), SELECTORS.approve])
+      ),
+      [ROUTER, SELECTORS.exitPreExpToToken],
+    ])
+  })
+
+  it('pins the receiver, the markets, the payout and no fills, leaves the amounts open', () => {
+    const [receiver, market, netPtIn, netYtIn, netLpIn, output, limit] = find(
+      preset(),
+      ROUTER,
+      SELECTORS.exitPreExpToToken
+    ).condition.children!
+    expect(receiver!.operator).toBe(EQUAL_TO_AVATAR)
+    expect(market!.children!.map((c) => c.compValue)).toEqual(
+      MARKETS.map((m) => word(m.market))
+    )
+    expect([netPtIn, netYtIn, netLpIn].map((n) => n!.operator)).toEqual([
+      PASS,
+      PASS,
+      PASS,
+    ])
+    expect(
+      branches(output!).map((branch) => {
+        const f = fields(branch, OUTPUT)
+        return [
+          f.tokenOut!.compValue,
+          f.tokenRedeemSy!.compValue,
+          f.pendleSwap!.compValue,
+          f.swapData!.children![0]!.compValue,
+        ]
+      })
+    ).toEqual(
+      [SUSDE, USDE].map((token) => [
+        word(token),
+        word(token),
+        word(NATIVE),
+        word(0),
+      ])
+    )
+    const { limitRouter, normalFills, flashFills } = fields(limit!, LIMIT)
+    expect(limitRouter).toMatchObject({ compValue: word(NATIVE) })
+    for (const fills of [normalFills!, flashFills!]) {
+      expect(BigInt(fills.compValue!.slice(-64))).toBe(0n)
+    }
+  })
+
+  it('labels itself after the markets', () => {
+    expect(preset().label).toBe(
+      `Exit Pendle positions (sUSDe 26 Nov 2099, ${SUSDE_AUG.market})`
+    )
+  })
+})
+
 describe('pendle.claim', () => {
   it('claims for the avatar from the listed SYs, YTs and markets only', () => {
     const preset = pendle.claim({ chain: 1, markets: MARKETS })
@@ -411,6 +473,47 @@ describe('pendle.claim', () => {
       )
     }
   })
+
+  it('approves the SY, which V2 pulls YT interest back as', () => {
+    const preset = pendle.claim({ chain: 1, markets: MARKETS })
+    // Both markets share one SY
+    expect(
+      calls(preset).filter(([, selector]) => selector === SELECTORS.approve)
+    ).toEqual([[SUSDE_NOV.sy.toLowerCase(), SELECTORS.approve]])
+    expect(
+      find(preset, SUSDE_NOV.sy, SELECTORS.approve).condition.children![0]
+    ).toMatchObject({ operator: EQUAL_TO, compValue: word(PENDLE[1].router) })
+  })
+
+  it('claims through V2 from the listed SYs, YTs and markets, with no swaps', () => {
+    const preset = pendle.claim({ chain: 1, markets: MARKETS })
+    const [sys, yts, markets, pendleSwap, swaps] = find(
+      preset,
+      ROUTER,
+      SELECTORS.redeemDueInterestAndRewardsV2
+    ).condition.children!
+
+    expect(sys).toMatchObject({
+      operator: ARRAY_EVERY,
+      children: [{ operator: EQUAL_TO, compValue: word(SUSDE_NOV.sy) }],
+    })
+    // Each entry is a struct; only its YT is pinned
+    expect(yts!.operator).toBe(ARRAY_EVERY)
+    const [yt, ...rest] = yts!.children![0]!.children!
+    expect(yts!.children![0]!.operator).toBe(MATCHES)
+    expect(yt!.children!.map((c) => c.compValue)).toEqual(
+      MARKETS.map((m) => word(m.yt))
+    )
+    expect(rest.map((n) => n.operator)).toEqual([PASS, PASS, PASS, PASS])
+    expect(markets!.operator).toBe(ARRAY_EVERY)
+    expect(markets!.children![0]!.children!.map((c) => c.compValue)).toEqual(
+      MARKETS.map((m) => word(m.market))
+    )
+    // pendleSwap only runs swaps, and the swap list must be empty
+    expect(pendleSwap!.operator).toBe(PASS)
+    expect(swaps!.operator).toBe(EQUAL_TO)
+    expect(BigInt(swaps!.compValue!.slice(-64))).toBe(0n)
+  })
 })
 
 describe('every Pendle preset', () => {
@@ -429,6 +532,7 @@ describe('every Pendle preset', () => {
       tokens: [{ token: USDE }],
     }),
     pendle.removeLiquidity({ chain: 1, markets: MARKETS, tokens: [SUSDE] }),
+    pendle.exit({ chain: 1, markets: MARKETS, tokens: [SUSDE] }),
     pendle.buyYt({ chain: 1, markets: MARKETS, tokens: [{ token: USDE }] }),
     pendle.sellYt({ chain: 1, markets: MARKETS, tokens: [SUSDE] }),
     pendle.claim({ chain: 1, markets: MARKETS }),

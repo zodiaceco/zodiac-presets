@@ -208,6 +208,35 @@ const removeLiquidity = ({ label, chain, markets, tokens }: PendleOutParams) =>
   })
 
 /**
+ * Exit PT, YT and LP of a market in one call before the expiry, as the
+ * Withdraw tab of Pendle's app does by default: the LP is burned, PT and YT
+ * are redeemed in pairs, whatever is left of either is sold on the market,
+ * and the SY pays the listed tokens out to the avatar. That sells PT and YT
+ * too, so the preset approves all three to the router. After the expiry the
+ * app exits through `exitPostExpToToken`, which `redeem` allows.
+ */
+const exit = ({ label, chain, markets, tokens }: PendleOutParams) =>
+  custom({
+    label: label ?? `Exit Pendle positions ${describe(markets)}`,
+    permissions: [
+      ...markets.flatMap((m) =>
+        [m.market, m.pt, m.yt].map((token) =>
+          at('erc20', token).approve(PENDLE[chain].router)
+        )
+      ),
+      router(chain).exitPreExpToToken(
+        c.avatar, // receiver
+        oneOf(markets.map((m) => m.market)),
+        undefined, // netPtIn
+        undefined, // netYtIn
+        undefined, // netLpIn
+        tokenOutput(markets, tokens),
+        NO_LIMIT_ORDERS
+      ),
+    ],
+  })
+
+/**
  * Buy YT with the listed tokens. YT is worth nothing after the expiry and
  * moves far more than PT, so it's a preset of its own.
  */
@@ -247,19 +276,38 @@ const sellYt = ({ label, chain, markets, tokens }: PendleOutParams) =>
  * Claim the interest of YT and the rewards of SY and LP positions. The
  * claims always pay the `user` they're made for, which is pinned to the
  * avatar; the lists can be empty.
+ *
+ * Pendle's app claims through `redeemDueInterestAndRewardsV2`, which claims
+ * for the caller and has the SY pay YT interest out as a token: the router
+ * pulls the interest back from the avatar as SY, hence the SY approvals.
+ * Its `swaps` would send the claimed tokens through `pendleSwap`, any
+ * contract, so the list must be empty; without swaps `pendleSwap` is unused.
  */
-const claim = ({ label, chain, markets }: PendleClaimParams) =>
-  custom({
+const claim = ({ label, chain, markets }: PendleClaimParams) => {
+  const sys = unique(markets.map((m) => m.sy))
+  const yts = markets.map((m) => m.yt)
+  const listed = markets.map((m) => m.market)
+
+  return custom({
     label: label ?? `Claim Pendle interest and rewards ${describe(markets)}`,
     permissions: [
       router(chain).redeemDueInterestAndRewards(
         c.avatar, // user
-        everyOneOf(unique(markets.map((m) => m.sy))),
-        everyOneOf(markets.map((m) => m.yt)),
-        everyOneOf(markets.map((m) => m.market))
+        everyOneOf(sys),
+        everyOneOf(yts),
+        everyOneOf(listed)
+      ),
+      ...sys.map((sy) => at('erc20', sy).approve(PENDLE[chain].router)),
+      router(chain).redeemDueInterestAndRewardsV2(
+        everyOneOf(sys),
+        everyYtOneOf(yts),
+        everyOneOf(listed),
+        undefined, // pendleSwap
+        []
       ),
     ],
   })
+}
 
 export const pendle = {
   buyPt,
@@ -267,6 +315,7 @@ export const pendle = {
   redeem,
   addLiquidity,
   removeLiquidity,
+  exit,
   buyYt,
   sellYt,
   claim,
@@ -456,6 +505,12 @@ const check = (
  */
 const everyOneOf = (values: readonly Address[]) =>
   c.every(oneOf(values)) as ConditionFunction<readonly Address[]>
+
+/** Every YT entry of `redeemDueInterestAndRewardsV2` names one of `yts`. */
+const everyYtOneOf = (yts: readonly Address[]) =>
+  c.every(c.matches({ yt: oneOf(yts) })) as ConditionFunction<
+    readonly { yt: Address }[]
+  >
 
 const unique = (values: readonly Address[]) => [
   ...new Map(values.map((v) => [v.toLowerCase(), v])).values(),
