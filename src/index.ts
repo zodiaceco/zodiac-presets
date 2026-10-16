@@ -7,7 +7,34 @@ export {
   type AaveMarket,
   type AaveParams,
 } from './aave'
+export {
+  derive,
+  DERIVE,
+  DERIVE_ASSETS,
+  DERIVE_SCOPE,
+  DERIVE_SCOPES,
+  type DeriveAsset,
+  type DeriveChain,
+  type DeriveDepositParams,
+  type DeriveDepositToken,
+  type DeriveSessionKeysParams,
+  type DeriveWithdrawParams,
+} from './derive'
 export { fluid, F_TOKENS, type FluidChain, type FluidParams } from './fluid'
+export {
+  gmx,
+  GMX,
+  GMX_UI_FEE_RECEIVER,
+  type GmxChain,
+  type GmxCollateral,
+  type GmxDepositParams,
+  type GmxGlv,
+  type GmxOwnSubaccountParams,
+  type GmxPool,
+  type GmxTradeParams,
+  type GmxTradingKeysParams,
+  type GmxWithdrawParams,
+} from './gmx'
 export {
   morpho,
   VAULT_BUNDLES_V1,
@@ -15,6 +42,18 @@ export {
   type MorphoDepositParams,
   type MorphoWithdrawParams,
 } from './morpho'
+export {
+  pendle,
+  PENDLE,
+  PENDLE_API,
+  pendleMarkets,
+  type PendleChain,
+  type PendleClaimParams,
+  type PendleInParams,
+  type PendleMarket,
+  type PendleOutParams,
+  type PendleTokenIn,
+} from './pendle'
 export {
   POSITION_MANAGER,
   uniswap,
