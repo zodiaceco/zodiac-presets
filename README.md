@@ -41,7 +41,7 @@ positions the avatar holds.
 | `aave.borrow`              | Borrow and repay tokens.                                                                                                                                                          |
 | `derive.deposit`           | Fund the avatar's Derive account: into new subaccounts it owns (the first creates the account) and/or its listed subaccounts, with a minimum and an optional allowance per token. |
 | `derive.withdraw`          | Withdraw from the avatar's subaccounts to the avatar, with a fee cap.                                                                                                             |
-| `derive.sessionKeys`       | Register EOA session keys that trade for the avatar: listed keys and scopes on listed subaccounts, optionally with transfers between them, an expiry cap.                         |
+| `derive.sessionKeys`       | Register EOA session keys that trade for the avatar: listed scopes on listed subaccounts, optionally with transfers between them, listed keys and an expiry cap.                  |
 | `derive.revokeSessionKeys` | Delete any of the avatar's session keys.                                                                                                                                          |
 | `fluid.deposit`            | Supply tokens (or the native token) to their Fluid fTokens.                                                                                                                       |
 | `fluid.withdraw`           | Withdraw them again.                                                                                                                                                              |
@@ -105,10 +105,8 @@ Safe-owned account's withdrawal whitelist stays empty, so keys can't pay out.
 Subaccounts are chosen up front. `derive.deposit` creates new ones only with
 `newSubaccounts` (the first deposit needs it); without it, deposits go to the
 listed `subaccounts` only. Session keys only ever act on listed subaccounts
-and can't create new ones. By default a key acts on exactly one of them and
-can't move funds. With `transfers: true` a key may also move collateral and
-positions between the avatar's subaccounts, and may act on several listed
-subaccounts, since both sides of a position transfer are signed by one key.
+and can't create new ones. A key acts on one or several of them and can't
+move funds between them unless `transfers: true` allows it.
 
 ```ts
 derive.sessionKeys({
@@ -120,6 +118,24 @@ derive.sessionKeys({
   expiresBefore: new Date('2027-01-01'),
 })
 ```
+
+The Derive app works through Pilot. It makes its session key in the browser
+and registers it with the `admin` scope on every subaccount, and Pilot
+rewrites that to trading and withdrawals (`DERIVE_SCOPES.app`) on the avatar's
+subaccounts, expiring within 30 days. A role for it leaves out `keys`, since
+the key is new each time, and should list all of the avatar's subaccounts:
+
+```ts
+derive.sessionKeys({
+  chain: 1,
+  scopes: DERIVE_SCOPES.app,
+  subaccounts: [optionsBook, perpHedge],
+})
+```
+
+Without `keys`, a member can hand trading to any key, including someone
+else's. The app also signs in with the Safe (SIWE, checked through ERC-1271),
+which these presets don't allow: sign in once while setting up the role.
 
 Derive vaults are unsupported. Anyone can create and curate one, and the
 curator mints shares at a price it quotes, so a key that may deposit into

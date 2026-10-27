@@ -22,6 +22,7 @@ const SELECTORS = {
 const EQUAL_TO_AVATAR = 15
 const EQUAL_TO = 16
 const LESS_THAN = 18
+const PASS = 0
 const OR = 2
 const MATCHES = 5
 const ARRAY_EVERY = 7
@@ -194,6 +195,13 @@ describe('derive.sessionKeys', () => {
       expiresBefore: new Date('2027-01-01T00:00:00Z'),
     }) as { label: string; permissions: any[] }
 
+  const appKeys = () =>
+    derive.sessionKeys({
+      chain: 1,
+      scopes: DERIVE_SCOPES.app,
+      subaccounts: [900001n, 900002n],
+    }) as { permissions: any[] }
+
   const subaccountsCondition = (transfers?: boolean) =>
     sessionKeys(DERIVE_SCOPES.optionsDesk, transfers).permissions[0].condition
       .children[1].children[3]
@@ -220,11 +228,29 @@ describe('derive.sessionKeys', () => {
       compValue: word(1798761600n + 1n),
     })
     expect(scopes.operator).toBe(ARRAY_EVERY)
-    // Exactly one listed subaccount per key, never an empty list
-    expect(subaccounts).toMatchObject({ operator: MATCHES })
-    expect(subaccounts.children).toHaveLength(1)
-    expect(subaccounts.children[0].operator).toBe(OR)
-    expect(subaccounts.children[0].children).toHaveLength(3)
+    // One to three of the listed subaccounts, never an empty list
+    expect(subaccounts.operator).toBe(OR)
+    expect(
+      subaccounts.children.map((c: any) => [c.operator, c.children.length])
+    ).toEqual([
+      [MATCHES, 1],
+      [MATCHES, 2],
+      [MATCHES, 3],
+    ])
+    expect(subaccounts.children[0].children[0].operator).toBe(OR)
+    expect(subaccounts.children[0].children[0].children).toHaveLength(3)
+  })
+
+  it('without `keys` and `expiresBefore`, allows any key and expiry', () => {
+    const [key, expiry, scopes, subaccounts] =
+      appKeys().permissions[0].condition.children[1].children
+    expect(key.operator).toBe(PASS)
+    expect(expiry.operator).toBe(PASS)
+    expect(scopes.children[0].children.map((c: any) => c.compValue)).toEqual([
+      word(1n),
+      word(2n),
+    ])
+    expect(subaccounts.operator).toBe(OR)
   })
 
   it('without transfers, refuses transfers between subaccounts', () => {
@@ -234,18 +260,12 @@ describe('derive.sessionKeys', () => {
     expect(() => sessionKeys([6, 12])).toThrow('`transfers: true`')
   })
 
-  it('with transfers, adds them and lets a key hold several subaccounts', () => {
+  it('with transfers, adds them', () => {
     expect(
       scopesCondition(true).children[0].children.map((c: any) => c.compValue)
     ).toEqual([word(6n), word(10n), word(12n)])
     expect(() => sessionKeys([6, 12], true)).not.toThrow()
-
-    // One to three of the listed subaccounts, never an empty list
-    const lengths = subaccountsCondition(true)
-    expect(lengths.operator).toBe(OR)
-    expect(lengths.children.map((c: any) => c.children.length)).toEqual([
-      1, 2, 3,
-    ])
+    expect(subaccountsCondition(true)).toEqual(subaccountsCondition())
   })
 
   for (const scope of [0, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]) {
@@ -264,6 +284,7 @@ describe('derive.sessionKeys', () => {
     expect(() =>
       compiles(sessionKeys(DERIVE_SCOPES.optionsDesk, true).permissions)
     ).not.toThrow()
+    expect(() => compiles(appKeys().permissions)).not.toThrow()
   })
 })
 

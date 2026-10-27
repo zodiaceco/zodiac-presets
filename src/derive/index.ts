@@ -16,8 +16,8 @@ import { list, oneOf } from '../utils'
 // withdrawal's recipient. It records `msg.sender` and Derive's sequencer
 // applies the action later. So these presets are the only on-chain check:
 // every owner, fallback recipient and payout recipient is pinned to the
-// avatar, and session keys only get trading on listed subaccounts and, if
-// allowed, transfers between them.
+// avatar, and session keys only get trading and withdrawals on listed
+// subaccounts and, if allowed, transfers between them.
 //
 // What stays outside Roles: the orders a session key signs. A key can lose
 // money through trades within its scopes, but can't pay anything out: a
@@ -103,10 +103,15 @@ export const DERIVE_SCOPE = {
 } as const
 
 /**
- * Trading scope sets for common desks. `derive.sessionKeys` adds transfers
- * between the listed subaccounts with `transfers: true`.
+ * Scope sets for common desks. `derive.sessionKeys` adds transfers between
+ * the listed subaccounts with `transfers: true`.
  */
 export const DERIVE_SCOPES = {
+  /**
+   * What Pilot registers for the Derive app: all trading, and withdrawals,
+   * which a key can only pay to the avatar.
+   */
+  app: [1, 2],
   optionsDesk: [6, 10],
   perpHedge: [5, 9],
   spotAndBasis: [4, 8],
@@ -192,21 +197,26 @@ export type DeriveSessionKeysParams = {
   /** Defaults to "Register Derive session keys". */
   label?: string
   chain: DeriveChain
-  /** EOAs that may become session keys. */
-  keys: readonly [Address, ...Address[]]
+  /**
+   * EOAs that may become session keys. Leave it out to allow any key, which
+   * the Derive app needs: it creates its key in the browser. Whoever holds a
+   * key trades within `scopes`, so members could then hand trading to anyone.
+   */
+  keys?: readonly [Address, ...Address[]]
   /** Scope codes, e.g. `DERIVE_SCOPES.optionsDesk`. */
   scopes: readonly number[]
-  /** The avatar's existing subaccounts the keys may act on. */
+  /**
+   * The avatar's existing subaccounts the keys may act on. A key acts on one
+   * or several of them.
+   */
   subaccounts: Subaccounts
   /**
    * Let keys move collateral and positions between `subaccounts`
-   * (`transferExistingSubaccount`). Both sides of a position transfer are
-   * signed by the same key, so a key may then act on several of
-   * `subaccounts`; without transfers it acts on exactly one.
+   * (`transferExistingSubaccount`).
    */
   transfers?: boolean
-  /** Latest expiry a key may get. */
-  expiresBefore: Date
+  /** Latest expiry a key may get. Leave it out for no limit. */
+  expiresBefore?: Date
 }
 
 /**
@@ -307,9 +317,9 @@ const withdraw = ({
   })
 
 /**
- * Register session keys that trade for the avatar. Each key is one of
- * `keys`, gets only `scopes`, acts on `subaccounts` (exactly one of them, or
- * several with `transfers`) and expires before `expiresBefore`.
+ * Register session keys that trade for the avatar. Each key is one of `keys`
+ * (or any key), gets only `scopes`, acts on some of `subaccounts` and expires
+ * before `expiresBefore` (if given).
  */
 const sessionKeys = ({
   label,
@@ -345,8 +355,10 @@ const sessionKeys = ({
         SET_SESSION_KEY,
         c.abiEncodedMatches(
           [
-            oneOf(keys),
-            c.lte(BigInt(Math.floor(expiresBefore.getTime() / 1000))),
+            keys ? oneOf(keys) : undefined,
+            expiresBefore
+              ? c.lte(BigInt(Math.floor(expiresBefore.getTime() / 1000)))
+              : undefined,
             c.every(
               oneOf(
                 transfers
@@ -359,7 +371,7 @@ const sessionKeys = ({
                   : scopes
               )
             ),
-            keySubaccounts(subaccounts, transfers),
+            keySubaccounts(subaccounts),
           ],
           SESSION_KEY_DATA
         )
@@ -369,17 +381,16 @@ const sessionKeys = ({
 }
 
 /**
- * The subaccounts a key acts on: exactly one of `subaccounts`, or with
- * `transfers` one to `subaccounts.length` of them. An empty list would mean
- * every current and future subaccount, and `c.every` alone accepts it, so
- * each allowed length is spelled out (`c.matches` fixes the length).
+ * The subaccounts a key acts on: one to `subaccounts.length` of them. An empty
+ * list would mean every current and future subaccount, and `c.every` alone
+ * accepts it, so each allowed length is spelled out (`c.matches` fixes the
+ * length).
  */
-const keySubaccounts = (subaccounts: Subaccounts, transfers: boolean) => {
+const keySubaccounts = (subaccounts: Subaccounts) => {
   const id = oneOf(subaccounts)
-  const lengths = transfers ? subaccounts.length : 1
 
   return oneOf(
-    Array.from({ length: lengths }, (_, i) =>
+    Array.from({ length: subaccounts.length }, (_, i) =>
       c.matches(Array.from({ length: i + 1 }, () => id))
     )
   )

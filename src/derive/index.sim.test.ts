@@ -21,6 +21,8 @@ const { USDC, ETH } = DERIVE_ASSETS[1]
 const OWN = [900001n, 900002n] as const
 const KEY = '0x0000000000000000000000000000005e55100001'
 const OTHER_KEY = '0x0000000000000000000000000000005e55100002'
+// A key the Derive app made in the browser
+const BROWSER_KEY = '0x0000000000000000000000000000005e55100003'
 const MILLION_USDC = 1_000_000n * 10n ** 6n
 
 const am = new Interface([
@@ -109,6 +111,13 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
               subaccounts: OWN,
             }),
           ],
+          derive_app: [
+            derive.sessionKeys({
+              chain: 1,
+              scopes: DERIVE_SCOPES.app,
+              subaccounts: OWN,
+            }),
+          ],
           derive_guardian: [derive.revokeSessionKeys({ chain: 1 })],
         },
         allowances: [
@@ -193,6 +202,26 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             role: 'derive_desk',
             to: ACTION_MANAGER,
             data: setKey(KEY, EXPIRY, DERIVE_SCOPES.optionsDesk, [OWN[0]]),
+            allowed: true,
+          },
+          {
+            label: 'register a key for both subaccounts',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [10], [...OWN]),
+            allowed: true,
+          },
+          {
+            // What Pilot turns the app's admin key into
+            label: 'register the app’s key, restricted by Pilot',
+            role: 'derive_app',
+            to: ACTION_MANAGER,
+            data: setKey(
+              BROWSER_KEY,
+              BigInt(Math.floor(Date.now() / 1000)) + 30n * 24n * 60n * 60n,
+              DERIVE_SCOPES.app,
+              [...OWN]
+            ),
             allowed: true,
           },
           {
@@ -361,10 +390,24 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             allowed: false,
           },
           {
-            label: 'key for two subaccounts',
+            label: 'key for more subaccounts than listed',
             role: 'derive_desk',
             to: ACTION_MANAGER,
-            data: setKey(KEY, EXPIRY, [10], [...OWN]),
+            data: setKey(KEY, EXPIRY, [10], [...OWN, OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'the app’s admin key, unrestricted',
+            role: 'derive_app',
+            to: ACTION_MANAGER,
+            data: setKey(BROWSER_KEY, EXPIRY, [0], []),
+            allowed: false,
+          },
+          {
+            label: 'app key that transfers',
+            role: 'derive_app',
+            to: ACTION_MANAGER,
+            data: setKey(BROWSER_KEY, EXPIRY, [1, 2, 12], [...OWN]),
             allowed: false,
           },
           {
