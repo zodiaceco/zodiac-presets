@@ -73,7 +73,7 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
                 },
                 { asset: 'ETH', minimum: 43n * 10n ** 14n },
               ],
-              managers: [1, 5],
+              newSubaccounts: { managers: [1, 5] },
               subaccounts: OWN,
             }),
             derive.withdraw({
@@ -90,6 +90,23 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
               scopes: DERIVE_SCOPES.optionsDesk,
               subaccounts: OWN,
               expiresBefore: new Date('2027-01-01T00:00:00Z'),
+            }),
+          ],
+          derive_rebalancer: [
+            derive.sessionKeys({
+              chain: 1,
+              keys: [KEY],
+              scopes: DERIVE_SCOPES.fullDesk,
+              subaccounts: OWN,
+              transfers: true,
+              expiresBefore: new Date('2027-01-01T00:00:00Z'),
+            }),
+          ],
+          derive_topups: [
+            derive.deposit({
+              chain: 1,
+              tokens: [{ asset: 'USDC', minimum: 10n * 10n ** 6n }],
+              subaccounts: OWN,
             }),
           ],
           derive_guardian: [derive.revokeSessionKeys({ chain: 1 })],
@@ -176,6 +193,32 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             role: 'derive_desk',
             to: ACTION_MANAGER,
             data: setKey(KEY, EXPIRY, DERIVE_SCOPES.optionsDesk, [OWN[0]]),
+            allowed: true,
+          },
+          {
+            label: 'register a key for both subaccounts, with transfers',
+            role: 'derive_rebalancer',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [4, 5, 6, 10, 12], [...OWN]),
+            allowed: true,
+          },
+          {
+            label: 'register a single-subaccount key, with transfers',
+            role: 'derive_rebalancer',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 12], [OWN[1]]),
+            allowed: true,
+          },
+          {
+            label: 'top-up without new subaccounts',
+            role: 'derive_topups',
+            to: ACTION_MANAGER,
+            data: am.encodeFunctionData('deposit', [
+              USDC.label,
+              100n * 10n ** 6n,
+              OWN[0],
+              AVATAR,
+            ]),
             allowed: true,
           },
           {
@@ -325,6 +368,53 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             allowed: false,
           },
           {
+            label: 'key that transfers, without transfers',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [10, 12], [OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key for every subaccount (empty list)',
+            role: 'derive_rebalancer',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12], []),
+            allowed: false,
+          },
+          {
+            label: 'transfer key with a foreign subaccount',
+            role: 'derive_rebalancer',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12], [OWN[0], 123456n]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key for more subaccounts than listed',
+            role: 'derive_rebalancer',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12], [...OWN, OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key creating subaccounts',
+            role: 'derive_rebalancer',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12, 13], [...OWN]),
+            allowed: false,
+          },
+          {
+            label: 'new subaccount without new subaccounts',
+            role: 'derive_topups',
+            to: ACTION_MANAGER,
+            data: am.encodeFunctionData('depositToNewSubaccount', [
+              USDC.label,
+              100n * 10n ** 6n,
+              5,
+              AVATAR,
+            ]),
+            allowed: false,
+          },
+          {
             label: 'unlisted key',
             role: 'derive_desk',
             to: ACTION_MANAGER,
@@ -373,7 +463,7 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
       console.log(`Ethereum block ${block}`)
       for (const c of cases) {
         console.log(
-          `${c.passed ? 'ok  ' : 'FAIL'} ${c.allowed ? 'allowed' : 'blocked'}  ${c.role.padEnd(16)} ${c.label.padEnd(40)} ${c.detail}`
+          `${c.passed ? 'ok  ' : 'FAIL'} ${c.allowed ? 'allowed' : 'blocked'}  ${c.role.padEnd(18)} ${c.label.padEnd(40)} ${c.detail}`
         )
       }
       expect(failedSetup).toEqual([])

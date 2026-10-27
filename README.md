@@ -34,37 +34,37 @@ Each protocol is one object, `<protocol>.<preset>`. Every receiver, owner and
 `onBehalfOf` is pinned to the avatar, so funds only ever move in and out of
 positions the avatar holds.
 
-| Preset                     | What it allows                                                                                                                                                           |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `aave.deposit`             | Supply tokens (or the native token, through the gateway) to an Aave v3 market and use them as collateral.                                                                |
-| `aave.withdraw`            | Withdraw supplied tokens and claim rewards.                                                                                                                              |
-| `aave.borrow`              | Borrow and repay tokens.                                                                                                                                                 |
-| `derive.deposit`           | Fund the avatar's Derive account: the first deposit creates it for the avatar, later ones go to its own subaccounts, with a minimum and an optional allowance per token. |
-| `derive.withdraw`          | Withdraw from the avatar's subaccounts to the avatar, with a fee cap.                                                                                                    |
-| `derive.sessionKeys`       | Register EOA session keys that trade for the avatar: listed keys and scopes, one own subaccount each, an expiry cap.                                                     |
-| `derive.revokeSessionKeys` | Delete any of the avatar's session keys.                                                                                                                                 |
-| `fluid.deposit`            | Supply tokens (or the native token) to their Fluid fTokens.                                                                                                              |
-| `fluid.withdraw`           | Withdraw them again.                                                                                                                                                     |
-| `gmx.trade`                | Open and close positions in listed GMX markets through the SubaccountRouter, with caps on collateral, size and the execution fee. No swaps, no callbacks.                |
-| `gmx.ownSubaccount`        | Register the avatar as its own GMX subaccount, which `gmx.trade` needs, with an expiry and action-count cap.                                                             |
-| `gmx.deposit`              | Deposit tokens into listed GM markets and GLVs, every token transfer within an allowance.                                                                                |
-| `gmx.withdraw`             | Withdraw from listed GM markets and GLVs to the avatar, every pool-token transfer within an allowance.                                                                   |
-| `gmx.tradingKeys`          | Register EOAs as GMX subaccounts (one-click trading): listed keys, expiry, lifetime action count and gas top-up caps.                                                    |
-| `gmx.revoke`               | Remove any subaccount, cancel orders and set Router approvals to 0.                                                                                                      |
-| `gmx.claim`                | Claim funding fees, claimable collateral and GMX distributions to the avatar.                                                                                            |
-| `morpho.deposit`           | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does.                              |
-| `morpho.withdraw`          | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                                                          |
-| `pendle.buyPt`             | Buy Pendle PT in listed markets with listed tokens, straight into the SY (no aggregator, no limit-order fills), with an optional allowance per token.                    |
-| `pendle.sellPt`            | Sell PT for tokens the SY pays out, to the avatar.                                                                                                                       |
-| `pendle.redeem`            | Redeem PT (after the expiry, PT alone) for tokens the SY pays out, to the avatar; for markets already expired also the exit Pendle's app uses (PT and LP in one call).   |
-| `pendle.addLiquidity`      | Add liquidity to listed markets with listed tokens, LP to the avatar.                                                                                                    |
-| `pendle.removeLiquidity`   | Remove liquidity, before or after the expiry, to the avatar.                                                                                                             |
-| `pendle.exit`              | Exit PT, YT and LP in one call before the expiry, the default of the app's Withdraw tab: burn LP, redeem PT and YT in pairs, sell the rest, pay the avatar.              |
-| `pendle.buyYt`             | Buy YT in listed markets with listed tokens.                                                                                                                             |
-| `pendle.sellYt`            | Sell YT for tokens the SY pays out, to the avatar.                                                                                                                       |
-| `pendle.claim`             | Claim YT interest and SY and LP rewards, paid to the avatar, also the way the app claims (V2, YT interest paid out as a token, no swaps).                                |
-| `uniswap.deposit`          | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                                                     |
-| `uniswap.withdraw`         | Remove liquidity and collect fees from the avatar's positions.                                                                                                           |
+| Preset                     | What it allows                                                                                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `aave.deposit`             | Supply tokens (or the native token, through the gateway) to an Aave v3 market and use them as collateral.                                                                         |
+| `aave.withdraw`            | Withdraw supplied tokens and claim rewards.                                                                                                                                       |
+| `aave.borrow`              | Borrow and repay tokens.                                                                                                                                                          |
+| `derive.deposit`           | Fund the avatar's Derive account: into new subaccounts it owns (the first creates the account) and/or its listed subaccounts, with a minimum and an optional allowance per token. |
+| `derive.withdraw`          | Withdraw from the avatar's subaccounts to the avatar, with a fee cap.                                                                                                             |
+| `derive.sessionKeys`       | Register EOA session keys that trade for the avatar: listed keys and scopes on listed subaccounts, optionally with transfers between them, an expiry cap.                         |
+| `derive.revokeSessionKeys` | Delete any of the avatar's session keys.                                                                                                                                          |
+| `fluid.deposit`            | Supply tokens (or the native token) to their Fluid fTokens.                                                                                                                       |
+| `fluid.withdraw`           | Withdraw them again.                                                                                                                                                              |
+| `gmx.trade`                | Open and close positions in listed GMX markets through the SubaccountRouter, with caps on collateral, size and the execution fee. No swaps, no callbacks.                         |
+| `gmx.ownSubaccount`        | Register the avatar as its own GMX subaccount, which `gmx.trade` needs, with an expiry and action-count cap.                                                                      |
+| `gmx.deposit`              | Deposit tokens into listed GM markets and GLVs, every token transfer within an allowance.                                                                                         |
+| `gmx.withdraw`             | Withdraw from listed GM markets and GLVs to the avatar, every pool-token transfer within an allowance.                                                                            |
+| `gmx.tradingKeys`          | Register EOAs as GMX subaccounts (one-click trading): listed keys, expiry, lifetime action count and gas top-up caps.                                                             |
+| `gmx.revoke`               | Remove any subaccount, cancel orders and set Router approvals to 0.                                                                                                               |
+| `gmx.claim`                | Claim funding fees, claimable collateral and GMX distributions to the avatar.                                                                                                     |
+| `morpho.deposit`           | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does.                                       |
+| `morpho.withdraw`          | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                                                                   |
+| `pendle.buyPt`             | Buy Pendle PT in listed markets with listed tokens, straight into the SY (no aggregator, no limit-order fills), with an optional allowance per token.                             |
+| `pendle.sellPt`            | Sell PT for tokens the SY pays out, to the avatar.                                                                                                                                |
+| `pendle.redeem`            | Redeem PT (after the expiry, PT alone) for tokens the SY pays out, to the avatar; for markets already expired also the exit Pendle's app uses (PT and LP in one call).            |
+| `pendle.addLiquidity`      | Add liquidity to listed markets with listed tokens, LP to the avatar.                                                                                                             |
+| `pendle.removeLiquidity`   | Remove liquidity, before or after the expiry, to the avatar.                                                                                                                      |
+| `pendle.exit`              | Exit PT, YT and LP in one call before the expiry, the default of the app's Withdraw tab: burn LP, redeem PT and YT in pairs, sell the rest, pay the avatar.                       |
+| `pendle.buyYt`             | Buy YT in listed markets with listed tokens.                                                                                                                                      |
+| `pendle.sellYt`            | Sell YT for tokens the SY pays out, to the avatar.                                                                                                                                |
+| `pendle.claim`             | Claim YT interest and SY and LP rewards, paid to the avatar, also the way the app claims (V2, YT interest paid out as a token, no swaps).                                         |
+| `uniswap.deposit`          | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                                                              |
+| `uniswap.withdraw`         | Remove liquidity and collect fees from the avatar's positions.                                                                                                                    |
 
 Without a `label`, each preset derives one from its inputs.
 
@@ -98,9 +98,28 @@ the avatar's Router approval.
 Derive trades off chain: an EOA session key signs the orders, so the Derive
 presets bound the keys, not the orders. `derive.sessionKeys` refuses scopes
 that hand out funds or rights (admin, transfers to other owners, child keys,
-liquidations, curator rights) and gives each key exactly one subaccount, since
-an empty list means every subaccount. Withdrawals only ever pay the avatar, and
-a Safe-owned account's withdrawal whitelist stays empty, so keys can't pay out.
+liquidations, curator rights) and never lets a key's subaccount list be empty,
+since that means every subaccount. Withdrawals only ever pay the avatar, and a
+Safe-owned account's withdrawal whitelist stays empty, so keys can't pay out.
+
+Subaccounts are chosen up front. `derive.deposit` creates new ones only with
+`newSubaccounts` (the first deposit needs it); without it, deposits go to the
+listed `subaccounts` only. Session keys only ever act on listed subaccounts
+and can't create new ones. By default a key acts on exactly one of them and
+can't move funds. With `transfers: true` a key may also move collateral and
+positions between the avatar's subaccounts, and may act on several listed
+subaccounts, since both sides of a position transfer are signed by one key.
+
+```ts
+derive.sessionKeys({
+  chain: 1,
+  keys: [desk],
+  scopes: DERIVE_SCOPES.fullDesk,
+  subaccounts: [optionsBook, perpHedge],
+  transfers: true,
+  expiresBefore: new Date('2027-01-01'),
+})
+```
 
 Derive vaults are unsupported. Anyone can create and curate one, and the
 curator mints shares at a price it quotes, so a key that may deposit into
