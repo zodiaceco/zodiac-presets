@@ -17,7 +17,7 @@ import { list, oneOf } from '../utils'
 // applies the action later. So these presets are the only on-chain check:
 // every owner, fallback recipient and payout recipient is pinned to the
 // avatar, and session keys only get trading and withdrawals on listed
-// subaccounts and, if allowed, transfers between them.
+// subaccounts, and transfers between them.
 //
 // What stays outside Roles: the orders a session key signs. A key can lose
 // money through trades within its scopes, but can't pay anything out: a
@@ -104,7 +104,7 @@ export const DERIVE_SCOPE = {
 
 /**
  * Scope sets for common desks. `derive.sessionKeys` adds transfers between
- * the listed subaccounts with `transfers: true`.
+ * the listed subaccounts when there are several.
  */
 export const DERIVE_SCOPES = {
   /**
@@ -207,14 +207,10 @@ export type DeriveSessionKeysParams = {
   scopes: readonly number[]
   /**
    * The avatar's existing subaccounts the keys may act on. A key acts on one
-   * or several of them.
-   */
-  subaccounts: Subaccounts
-  /**
-   * Let keys move collateral and positions between `subaccounts`
+   * or several of them, and may move collateral and positions between them
    * (`transferExistingSubaccount`).
    */
-  transfers?: boolean
+  subaccounts: Subaccounts
   /** Latest expiry a key may get. Leave it out for no limit. */
   expiresBefore?: Date
 }
@@ -327,17 +323,11 @@ const sessionKeys = ({
   keys,
   scopes,
   subaccounts,
-  transfers = false,
   expiresBefore,
 }: DeriveSessionKeysParams) => {
   if (scopes.length === 0) throw new Error('Derive session keys need scopes')
 
   for (const scope of scopes) {
-    if (scope === DERIVE_SCOPE.transferExistingSubaccount && !transfers) {
-      throw new Error(
-        `Derive scope ${scope} moves funds between subaccounts: pass \`transfers: true\``
-      )
-    }
     if (scope in REFUSED_SCOPES) {
       throw new Error(
         `Derive scope ${scope} is not allowed: ${REFUSED_SCOPES[scope]}`
@@ -361,7 +351,7 @@ const sessionKeys = ({
               : undefined,
             c.every(
               oneOf(
-                transfers
+                subaccounts.length > 1
                   ? [
                       ...new Set([
                         ...scopes,

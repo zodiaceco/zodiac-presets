@@ -184,14 +184,13 @@ describe('derive.withdraw', () => {
 describe('derive.sessionKeys', () => {
   const sessionKeys = (
     scopes: readonly number[] = DERIVE_SCOPES.optionsDesk,
-    transfers?: boolean
+    subaccounts: readonly [bigint, ...bigint[]] = [900001n, 900002n, 900003n]
   ) =>
     derive.sessionKeys({
       chain: 1,
       keys: [KEY],
       scopes,
-      subaccounts: [900001n, 900002n, 900003n],
-      transfers,
+      subaccounts,
       expiresBefore: new Date('2027-01-01T00:00:00Z'),
     }) as { label: string; permissions: any[] }
 
@@ -202,12 +201,11 @@ describe('derive.sessionKeys', () => {
       subaccounts: [900001n, 900002n],
     }) as { permissions: any[] }
 
-  const subaccountsCondition = (transfers?: boolean) =>
-    sessionKeys(DERIVE_SCOPES.optionsDesk, transfers).permissions[0].condition
-      .children[1].children[3]
-  const scopesCondition = (transfers?: boolean) =>
-    sessionKeys(DERIVE_SCOPES.optionsDesk, transfers).permissions[0].condition
-      .children[1].children[2]
+  const allowedScopes = (subaccounts?: readonly [bigint, ...bigint[]]) => {
+    const scopes = sessionKeys(DERIVE_SCOPES.optionsDesk, subaccounts)
+      .permissions[0].condition.children[1].children[2].children[0]
+    return (scopes.children ?? [scopes]).map((c: any) => c.compValue)
+  }
 
   it('allows only Set Session Key, decoded', () => {
     const [permission] = sessionKeys().permissions
@@ -249,23 +247,14 @@ describe('derive.sessionKeys', () => {
     expect(scopes.children[0].children.map((c: any) => c.compValue)).toEqual([
       word(1n),
       word(2n),
+      word(12n),
     ])
     expect(subaccounts.operator).toBe(OR)
   })
 
-  it('without transfers, refuses transfers between subaccounts', () => {
-    expect(
-      scopesCondition().children[0].children.map((c: any) => c.compValue)
-    ).toEqual([word(6n), word(10n)])
-    expect(() => sessionKeys([6, 12])).toThrow('`transfers: true`')
-  })
-
-  it('with transfers, adds them', () => {
-    expect(
-      scopesCondition(true).children[0].children.map((c: any) => c.compValue)
-    ).toEqual([word(6n), word(10n), word(12n)])
-    expect(() => sessionKeys([6, 12], true)).not.toThrow()
-    expect(subaccountsCondition(true)).toEqual(subaccountsCondition())
+  it('with several subaccounts, adds transfers between them', () => {
+    expect(allowedScopes()).toEqual([word(6n), word(10n), word(12n)])
+    expect(allowedScopes([900001n])).toEqual([word(6n), word(10n)])
   })
 
   for (const scope of [0, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]) {
@@ -282,7 +271,7 @@ describe('derive.sessionKeys', () => {
   it('compiles', () => {
     expect(() => compiles(sessionKeys().permissions)).not.toThrow()
     expect(() =>
-      compiles(sessionKeys(DERIVE_SCOPES.optionsDesk, true).permissions)
+      compiles(sessionKeys(DERIVE_SCOPES.optionsDesk, [900001n]).permissions)
     ).not.toThrow()
     expect(() => compiles(appKeys().permissions)).not.toThrow()
   })
