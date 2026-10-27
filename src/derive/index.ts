@@ -27,6 +27,7 @@ import { list, oneOf } from '../utils'
 /** The OnchainActionManager (proxy), by chain id. */
 export const DERIVE = {
   1: '0xE366CcA474968e33b777E13905829A3b800CFAD3', // Ethereum
+  11155111: '0xd3625eCf97E5554C62A48Ac1c9284C9dCeFceB68', // Sepolia (Derive testnet)
 } as const satisfies Record<number, Address>
 
 export type DeriveChain = keyof typeof DERIVE
@@ -62,6 +63,33 @@ export const DERIVE_ASSETS = {
     DRV: {
       label: '0x1Abdb2896e57047fD989af7B3Ee6B7e81830F8D2',
       token: '0xB1D1eae60EEA9525032a6DCb4c1CE336a1dE71BE',
+    },
+  },
+  // Derive's testnet: the same labels, with test tokens anyone can mint
+  11155111: {
+    USDC: {
+      label: '0x57B03E14d409ADC7fAb6CFc44b5886CAD2D5f02b',
+      token: '0x73Efab09362052D26FB93A730Be4F8a5EdC833af',
+    },
+    ETH: {
+      label: '0xE201fCEfD4852f96810C069f66560dc25B2C7A55',
+      token: '0x5039eB26A431c7303070E716eAD2122844A23Bd1',
+    },
+    WSTETH: {
+      label: '0x69c7AADFfD607F74eE610f047f552CaDecabca4E',
+      token: '0x93c1692EC5a03E104A1C13e4bc04482D122334FF',
+    },
+    WEETH: {
+      label: '0xF30EE744fCfd135A135E6a4e327e01d0f697e6Ec',
+      token: '0x164aB34cFec6665e4CaF619c697eA3932360aed0',
+    },
+    SUSDE: {
+      label: '0x375804CdcF0D534FDD2657584A7c4Ff5AB14A2bb',
+      token: '0x0F24F541Af7BD866Bfa3830d588cd7756cd64326',
+    },
+    DRV: {
+      label: '0x1Abdb2896e57047fD989af7B3Ee6B7e81830F8D2',
+      token: '0xa36d27421fE232E7569De49D044CBdD009454D72',
     },
   },
 } as const satisfies Record<
