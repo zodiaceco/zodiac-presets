@@ -208,7 +208,8 @@ export type DeriveSessionKeysParams = {
   /**
    * The avatar's existing subaccounts the keys may act on. A key acts on one
    * or several of them, and may move collateral and positions between them
-   * (`transferExistingSubaccount`).
+   * (`transferExistingSubaccount`). To keep subaccounts apart, call
+   * `derive.sessionKeys` once per subaccount instead.
    */
   subaccounts: Subaccounts
   /** Latest expiry a key may get. Leave it out for no limit. */

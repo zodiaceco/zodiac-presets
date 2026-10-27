@@ -106,7 +106,9 @@ Subaccounts are chosen up front. `derive.deposit` creates new ones only with
 `newSubaccounts` (the first deposit needs it); without it, deposits go to the
 listed `subaccounts` only. Session keys only ever act on listed subaccounts
 and can't create new ones. A key acts on one or several of them and, when a
-role lists several, may move collateral and positions between them.
+role lists several, may move collateral and positions between them. To rule
+out transfers, use `derive.sessionKeys` once for each subaccount: each key
+then acts on a single one.
 
 ```ts
 derive.sessionKeys({

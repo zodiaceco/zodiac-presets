@@ -110,6 +110,15 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
               subaccounts: OWN,
             }),
           ],
+          // Once per subaccount, so no key spans both or transfers
+          derive_separate: OWN.map((subaccount) =>
+            derive.sessionKeys({
+              chain: 1,
+              keys: [KEY],
+              scopes: DERIVE_SCOPES.optionsDesk,
+              subaccounts: [subaccount],
+            })
+          ),
           derive_app: [
             derive.sessionKeys({
               chain: 1,
@@ -242,6 +251,13 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             role: 'derive_desk',
             to: ACTION_MANAGER,
             data: setKey(KEY, EXPIRY, [6, 12], [OWN[1]]),
+            allowed: true,
+          },
+          {
+            label: 'register a key on either subaccount',
+            role: 'derive_separate',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 10], [OWN[1]]),
             allowed: true,
           },
           {
@@ -400,6 +416,20 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             role: 'derive_desk',
             to: ACTION_MANAGER,
             data: setKey(KEY, EXPIRY, [10], [...OWN, OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'separate keys: one key for both',
+            role: 'derive_separate',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 10], [...OWN]),
+            allowed: false,
+          },
+          {
+            label: 'separate keys: a key that transfers',
+            role: 'derive_separate',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 12], [OWN[0]]),
             allowed: false,
           },
           {
