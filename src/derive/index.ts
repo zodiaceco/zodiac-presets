@@ -109,6 +109,14 @@ export const DERIVE_SCOPES = {
   marketMaker: [4, 5, 6, 12],
 } as const
 
+// Anyone can create and curate a Derive vault, and the curator mints the shares
+// at a price it quotes. A key's data names no vault, so Roles can't keep a key
+// with the deposit scope away from an attacker's vault. Vault deposits are
+// signed off chain only, so without that scope a Safe can't hold shares, and
+// the withdraw and cancel scopes have nothing to act on.
+const VAULTS_UNSUPPORTED =
+  'Derive vaults are unsupported: Roles can’t pin which vault a key deposits into'
+
 // Scopes a preset never grants, and why.
 const REFUSED_SCOPES: Record<number, string> = {
   0: 'admin grants everything, including filling the withdrawal whitelist',
@@ -119,6 +127,9 @@ const REFUSED_SCOPES: Record<number, string> = {
   17: 'vaultAll includes curator rights',
   18: 'curator rights manage other people’s funds',
   19: 'curator rights manage other people’s funds',
+  20: VAULTS_UNSUPPORTED,
+  21: VAULTS_UNSUPPORTED,
+  22: VAULTS_UNSUPPORTED,
 }
 
 // Set Session Key: `submit(51, abi.encode(key, expirySec, scopes, subaccountIds))`.

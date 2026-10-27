@@ -102,6 +102,13 @@ liquidations, curator rights) and gives each key exactly one subaccount, since
 an empty list means every subaccount. Withdrawals only ever pay the avatar, and
 a Safe-owned account's withdrawal whitelist stays empty, so keys can't pay out.
 
+Derive vaults are unsupported. Anyone can create and curate one, and the
+curator mints shares at a price it quotes, so a key that may deposit into
+vaults could hand the avatar's funds to an attacker's vault. A session key's
+data names no vault, so Roles can't limit which ones it uses. Vault deposits
+are signed off chain only, so `derive.sessionKeys` refuses all vault scopes
+(17–22) and the avatar can't hold vault shares.
+
 Pendle markets expire, so the Pendle presets take them as a parameter.
 `pendleMarkets()` reads them from Pendle's API, by name among the active ones
 or by address (expired ones too, to redeem):

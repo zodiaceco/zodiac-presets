@@ -192,7 +192,7 @@ describe('derive.sessionKeys', () => {
     expect(subaccounts.children).toHaveLength(2)
   })
 
-  for (const scope of [0, 11, 14, 15, 16, 17, 18, 19]) {
+  for (const scope of [0, 11, 14, 15, 16, 17, 18, 19, 20, 21, 22]) {
     it(`refuses scope ${scope}`, () => {
       expect(() => sessionKeys([6, scope])).toThrow(`Derive scope ${scope}`)
     })
