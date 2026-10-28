@@ -21,6 +21,8 @@ const { USDC, ETH } = DERIVE_ASSETS[1]
 const OWN = [900001n, 900002n] as const
 const KEY = '0x0000000000000000000000000000005e55100001'
 const OTHER_KEY = '0x0000000000000000000000000000005e55100002'
+// A key the Derive app made in the browser
+const BROWSER_KEY = '0x0000000000000000000000000000005e55100003'
 const MILLION_USDC = 1_000_000n * 10n ** 6n
 
 const am = new Interface([
@@ -73,7 +75,7 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
                 },
                 { asset: 'ETH', minimum: 43n * 10n ** 14n },
               ],
-              managers: [1, 5],
+              newSubaccounts: { managers: [1, 5] },
               subaccounts: OWN,
             }),
             derive.withdraw({
@@ -90,6 +92,38 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
               scopes: DERIVE_SCOPES.optionsDesk,
               subaccounts: OWN,
               expiresBefore: new Date('2027-01-01T00:00:00Z'),
+            }),
+          ],
+          derive_single: [
+            derive.sessionKeys({
+              chain: 1,
+              keys: [KEY],
+              scopes: DERIVE_SCOPES.fullDesk,
+              subaccounts: [OWN[0]],
+              expiresBefore: new Date('2027-01-01T00:00:00Z'),
+            }),
+          ],
+          derive_topups: [
+            derive.deposit({
+              chain: 1,
+              tokens: [{ asset: 'USDC', minimum: 10n * 10n ** 6n }],
+              subaccounts: OWN,
+            }),
+          ],
+          // Once per subaccount, so no key spans both or transfers
+          derive_separate: OWN.map((subaccount) =>
+            derive.sessionKeys({
+              chain: 1,
+              keys: [KEY],
+              scopes: DERIVE_SCOPES.optionsDesk,
+              subaccounts: [subaccount],
+            })
+          ),
+          derive_app: [
+            derive.sessionKeys({
+              chain: 1,
+              scopes: DERIVE_SCOPES.app,
+              subaccounts: OWN,
             }),
           ],
           derive_guardian: [derive.revokeSessionKeys({ chain: 1 })],
@@ -176,6 +210,66 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             role: 'derive_desk',
             to: ACTION_MANAGER,
             data: setKey(KEY, EXPIRY, DERIVE_SCOPES.optionsDesk, [OWN[0]]),
+            allowed: true,
+          },
+          {
+            label: 'register a key for both subaccounts',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [10], [...OWN]),
+            allowed: true,
+          },
+          {
+            // What Pilot turns the app's admin key into
+            label: 'register the app’s key, restricted by Pilot',
+            role: 'derive_app',
+            to: ACTION_MANAGER,
+            data: setKey(
+              BROWSER_KEY,
+              BigInt(Math.floor(Date.now() / 1000)) + 30n * 24n * 60n * 60n,
+              [...DERIVE_SCOPES.app, 12],
+              [...OWN]
+            ),
+            allowed: true,
+          },
+          {
+            label: 'register a key for both subaccounts, with transfers',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 10, 12], [...OWN]),
+            allowed: true,
+          },
+          {
+            label: 'register a key, single listed subaccount',
+            role: 'derive_single',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [4, 5, 6, 8, 9, 10], [OWN[0]]),
+            allowed: true,
+          },
+          {
+            label: 'register a single-subaccount key, with transfers',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 12], [OWN[1]]),
+            allowed: true,
+          },
+          {
+            label: 'register a key on either subaccount',
+            role: 'derive_separate',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 10], [OWN[1]]),
+            allowed: true,
+          },
+          {
+            label: 'top-up without new subaccounts',
+            role: 'derive_topups',
+            to: ACTION_MANAGER,
+            data: am.encodeFunctionData('deposit', [
+              USDC.label,
+              100n * 10n ** 6n,
+              OWN[0],
+              AVATAR,
+            ]),
             allowed: true,
           },
           {
@@ -318,10 +412,85 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
             allowed: false,
           },
           {
-            label: 'key for two subaccounts',
+            label: 'key for more subaccounts than listed',
             role: 'derive_desk',
             to: ACTION_MANAGER,
-            data: setKey(KEY, EXPIRY, [10], [...OWN]),
+            data: setKey(KEY, EXPIRY, [10], [...OWN, OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'separate keys: one key for both',
+            role: 'derive_separate',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 10], [...OWN]),
+            allowed: false,
+          },
+          {
+            label: 'separate keys: a key that transfers',
+            role: 'derive_separate',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [6, 12], [OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'the app’s admin key, unrestricted',
+            role: 'derive_app',
+            to: ACTION_MANAGER,
+            data: setKey(BROWSER_KEY, EXPIRY, [0], []),
+            allowed: false,
+          },
+          {
+            label: 'app key that transfers to other owners',
+            role: 'derive_app',
+            to: ACTION_MANAGER,
+            data: setKey(BROWSER_KEY, EXPIRY, [1, 2, 14], [...OWN]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key, single listed subaccount',
+            role: 'derive_single',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [10, 12], [OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key for every subaccount (empty list)',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12], []),
+            allowed: false,
+          },
+          {
+            label: 'transfer key with a foreign subaccount',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12], [OWN[0], 123456n]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key for more subaccounts than listed',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12], [...OWN, OWN[0]]),
+            allowed: false,
+          },
+          {
+            label: 'transfer key creating subaccounts',
+            role: 'derive_desk',
+            to: ACTION_MANAGER,
+            data: setKey(KEY, EXPIRY, [12, 13], [...OWN]),
+            allowed: false,
+          },
+          {
+            label: 'new subaccount without new subaccounts',
+            role: 'derive_topups',
+            to: ACTION_MANAGER,
+            data: am.encodeFunctionData('depositToNewSubaccount', [
+              USDC.label,
+              100n * 10n ** 6n,
+              5,
+              AVATAR,
+            ]),
             allowed: false,
           },
           {
@@ -373,7 +542,7 @@ describe.skipIf(!simulationEnabled)('derive presets on mainnet state', () => {
       console.log(`Ethereum block ${block}`)
       for (const c of cases) {
         console.log(
-          `${c.passed ? 'ok  ' : 'FAIL'} ${c.allowed ? 'allowed' : 'blocked'}  ${c.role.padEnd(16)} ${c.label.padEnd(40)} ${c.detail}`
+          `${c.passed ? 'ok  ' : 'FAIL'} ${c.allowed ? 'allowed' : 'blocked'}  ${c.role.padEnd(18)} ${c.label.padEnd(40)} ${c.detail}`
         )
       }
       expect(failedSetup).toEqual([])
