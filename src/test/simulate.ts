@@ -240,14 +240,28 @@ export const simulate = async ({
   const caseResults: CaseResult[] = cases.map((testCase, i) => {
     const result = results[setup.length + i]!
     const allowed = result.status === '0x1'
+    const detail = allowed
+      ? 'executed'
+      : reason(result.error?.data ?? result.returnData)
     return {
       ...testCase,
-      passed: allowed === testCase.allowed,
-      detail: allowed
-        ? 'executed'
-        : reason(result.error?.data ?? result.returnData),
+      // A blocked case must stop at Roles. A call Roles lets through and the
+      // target then reverts (ModuleTransactionFailed) proves nothing.
+      passed: testCase.allowed
+        ? allowed
+        : ROLES_REJECTIONS.some((error) => detail.startsWith(error)),
+      detail,
     }
   })
 
   return { block: block.number, failedSetup, cases: caseResults }
 }
+
+/** Errors with which Roles refuses a call it does not permit. */
+const ROLES_REJECTIONS = [
+  'ConditionViolation',
+  'NoMembership',
+  'CalldataOutOfBounds',
+  'FunctionSignatureTooShort',
+  'MalformedMultiEntrypoint',
+]
