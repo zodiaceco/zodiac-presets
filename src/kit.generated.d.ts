@@ -95,6 +95,18 @@ export interface AllowKit {
       withdrawETH: (arg0?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, to?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
       withdrawETHWithPermit: (arg0?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, to?: Scoping<`0x${string}`>, deadline?: Scoping<import("ethers").BigNumberish>, permitV?: Scoping<import("ethers").BigNumberish>, permitR?: Scoping<`0x${string}`>, permitS?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
     };
+    derive_onchain_action_manager: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      acceptOwnership: (options?: Options) => FunctionPermission;
+      claimWithdrawalFee: (recipient?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      deposit: (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, subaccountId?: Scoping<import("ethers").BigNumberish>, fallbackRecipient?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      depositToNewSubaccount: (asset?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, managerId?: Scoping<import("ethers").BigNumberish>, owner_?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      initialize: (_owner?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      renounceOwnership: (options?: Options) => FunctionPermission;
+      submit: (actionType?: Scoping<import("ethers").BigNumberish>, data?: Scoping<import("ethers").BytesLike>, options?: Options) => FunctionPermission;
+      transferOwnership: (newOwner?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      withdraw: (params?: Scoping<{ subaccountId: import("ethers").BigNumberish; protocolAsset: `0x${string}`; maxFeeUsdE18: import("ethers").BigNumberish; recipient: `0x${string}`; amountInUnderlying: import("ethers").BigNumberish; forceBatch: boolean }>, options?: Options) => FunctionPermission;
+    };
     erc20: {
       [EVERYTHING]: (options?: Options) => TargetPermission;
       transfer: (to?: Scoping<`0x${string}`>, value?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
