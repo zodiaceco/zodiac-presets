@@ -34,30 +34,62 @@ Each protocol is one object, `<protocol>.<preset>`. Every receiver, owner and
 `onBehalfOf` is pinned to the avatar, so funds only ever move in and out of
 positions the avatar holds.
 
-| Preset             | What it allows                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `aave.deposit`     | Supply tokens (or the native token, through the gateway) to an Aave v3 market and use them as collateral.                                   |
-| `aave.withdraw`    | Withdraw supplied tokens and claim rewards.                                                                                                 |
-| `aave.borrow`      | Borrow and repay tokens.                                                                                                                    |
-| `fluid.deposit`    | Supply tokens (or the native token) to their Fluid fTokens.                                                                                 |
-| `fluid.withdraw`   | Withdraw them again.                                                                                                                        |
-| `morpho.deposit`   | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. |
-| `morpho.withdraw`  | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                             |
-| `uniswap.deposit`  | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                        |
-| `uniswap.withdraw` | Remove liquidity and collect fees from the avatar's positions.                                                                              |
+| Preset                                   | What it allows                                                                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `aave.deposit`                           | Supply tokens (or the native token, through the gateway) to an Aave v3 market and use them as collateral.                                   |
+| `aave.withdraw`                          | Withdraw supplied tokens and claim rewards.                                                                                                 |
+| `aave.borrow`                            | Borrow and repay tokens.                                                                                                                    |
+| `fluid.deposit`                          | Supply tokens (or the native token) to their Fluid fTokens.                                                                                 |
+| `fluid.withdraw`                         | Withdraw them again.                                                                                                                        |
+| `hyperliquid.tradingKeys` (experimental) | Add, replace and remove trading keys for the avatar's Hyperliquid account.                                                                  |
+| `hyperliquid.funds` (experimental)       | Deposit USDC into the avatar's Hyperliquid account, move it between spot and perp, and withdraw it from spot to the avatar on HyperEVM.     |
+| `hyperliquid.builderFee` (experimental)  | Approve the fee of one builder, up to one rate.                                                                                             |
+| `morpho.deposit`                         | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. |
+| `morpho.withdraw`                        | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                             |
+| `uniswap.deposit`                        | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                        |
+| `uniswap.withdraw`                       | Remove liquidity and collect fees from the avatar's positions.                                                                              |
 
 Without a `label`, each preset derives one from its inputs.
 
-| Protocol   | Chains                                                                                                                                          | Addresses                                                                 |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Aave v3    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`    |
-| Fluid      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`   |
-| Morpho     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts` |
-| Uniswap v3 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`    |
+| Protocol                   | Chains                                                                                                                                          | Addresses                                                                 |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Aave v3                    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`    |
+| Fluid                      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`   |
+| Hyperliquid (experimental) | HyperEVM                                                                                                                                        | `HYPERLIQUID` and `CORE_WRITER` in `src/hyperliquid/index.ts`             |
+| Morpho                     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts` |
+| Uniswap v3                 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`    |
 
 Morpho pins VaultBundlesV1's referral fee to zero and, without a `label`, looks
 up the vaults' names on the [Morpho API](https://api.morpho.org/graphql). The
 other presets make no network calls.
+
+### Hyperliquid (experimental)
+
+The Hyperliquid presets are checked against HyperEVM state but not yet used
+in a deployed role. A Safe acts on its Hyperliquid account through CoreWriter
+on HyperEVM, which takes each action as raw bytes, so the presets pin byte
+ranges of it:
+
+- `tradingKeys` allows action 9 (`addApiWallet`) with any key and name.
+  Trading keys trade the account, but Hyperliquid lets them neither withdraw
+  nor transfer from it.
+- `funds` allows USDC approvals to Circle's CoreDepositWallet, deposits for the
+  avatar into perp or spot, action 7 (`usdClassTransfer`, between the avatar's
+  own spot and perp) and action 13 (`sendAsset`) of USDC from spot to USDC's
+  system address, which pays it out to the avatar on HyperEVM. Only the amounts
+  are open.
+- `builderFee` allows action 12 (`approveBuilderFee`) for one builder at one
+  rate. Add it only when an app the avatar trades through charges a builder
+  fee.
+
+```ts
+import { hyperliquid } from '@zodiaceco/presets'
+
+export default [
+  await hyperliquid.tradingKeys({ chain: 999 }),
+  await hyperliquid.funds({ chain: 999 }),
+] satisfies Permissions
+```
 
 ## Adding a preset
 
@@ -80,17 +112,24 @@ other presets make no network calls.
    (`src/<protocol>/index.test.ts`) and a row to the table above. A preset
    replacing a DeFi Kit one is tested against DeFi Kit's output for the same
    inputs (`expectSamePermissions` in `src/test/defiKit.ts`).
+5. Check the presets against chain state in `src/<protocol>/index.sim.test.ts`
+   with `simulateByCall()` from `src/test/simulateByCall.ts`. It scopes a
+   Roles v2.1.1 mod on a Safe with your presets and sends each case through
+   it, all in one `eth_call` with state overrides: the intended flows must
+   execute against the real protocol contracts, and every call that would hand
+   funds to someone else must stop at the Roles mod. Nothing is sent.
 
 ## Development
 
-| Command           | What it does                              |
-| ----------------- | ----------------------------------------- |
-| `bun install`     | Install dependencies                      |
-| `bun codegen`     | Regenerate the kit types from the ABIs    |
-| `bun test`        | Run the tests                             |
-| `bun check:types` | Type-check                                |
-| `bun fix:format`  | Format with Prettier                      |
-| `bun run build`   | Build `dist/` (ESM and type declarations) |
+| Command           | What it does                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `bun install`     | Install dependencies                                                                |
+| `bun codegen`     | Regenerate the kit types from the ABIs                                              |
+| `bun test`        | Run the tests                                                                       |
+| `bun test:sim`    | Run the simulations against chain state (`RPC_<chainId>` overrides the default RPC) |
+| `bun check:types` | Type-check                                                                          |
+| `bun fix:format`  | Format with Prettier                                                                |
+| `bun run build`   | Build `dist/` (ESM and type declarations)                                           |
 
 ## Releasing
 

@@ -20,6 +20,8 @@ export default defineConfig({
       erc20: ABI_ONLY,
       erc4626: ABI_ONLY,
       fluid_ftoken_native: ABI_ONLY,
+      hyperliquid_core_deposit_wallet: ABI_ONLY,
+      hyperliquid_core_writer: ABI_ONLY,
       morpho_vault_bundles_v1: ABI_ONLY,
       uniswap_v3_position_manager: ABI_ONLY,
     },
