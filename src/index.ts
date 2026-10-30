@@ -9,6 +9,14 @@ export {
 } from './aave'
 export { fluid, F_TOKENS, type FluidChain, type FluidParams } from './fluid'
 export {
+  CORE_WRITER,
+  hyperliquid,
+  HYPERLIQUID,
+  type HyperliquidBuilderFeeParams,
+  type HyperliquidChain,
+  type HyperliquidParams,
+} from './hyperliquid'
+export {
   morpho,
   VAULT_BUNDLES_V1,
   type MorphoChain,
