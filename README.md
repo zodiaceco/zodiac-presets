@@ -65,8 +65,9 @@ other presets make no network calls.
 
 ### Hyperliquid (experimental)
 
-The Hyperliquid presets are checked against HyperEVM state but not yet used
-in a deployed role. A Safe acts on its Hyperliquid account through CoreWriter
+The Hyperliquid presets are checked against HyperEVM state. `tradingKeys` and
+`funds` with USDC alone run in a deployed role on a test Safe on HyperEVM; the
+token list and `staking` are checked by simulation only. A Safe acts on its Hyperliquid account through CoreWriter
 on HyperEVM, which takes each action as raw bytes, so the presets pin byte
 ranges of it:
 
