@@ -43,10 +43,21 @@ import { oneOf, ZERO } from '../utils'
 //   - Every other token is an ERC-20 linked to its spot token. Its `transfer`
 //     is pinned to the token's system address, which HyperCore credits to the
 //     sender's spot balance; only the amount is open.
+// - `staking` moves HYPE between the avatar's spot and staking balances
+//   (actions 4 and 5) and delegates it (action 3). Staked and delegated HYPE
+//   stays the avatar's: a delegation only says which validator the avatar's
+//   stake backs, and undelegating returns it to the avatar's staking balance
+//   after Hyperliquid's one-day lockup. Staking to spot goes through
+//   Hyperliquid's seven-day unstaking queue. The amounts are open, and so is
+//   the validator unless the preset lists some. What is left to choose well is
+//   the validator: it takes a commission on rewards, and Hyperliquid reserves
+//   slashing for provably malicious behaviour, though it implements no
+//   automatic slashing today
+//   (https://hyperliquid.gitbook.io/hyperliquid-docs/hypercore/staking).
 // - No other action is allowed. Trading keys sign orders off chain, so the
-//   avatar needs no order actions, and spot sends, vault transfers and staking
-//   would move funds to other accounts. Builder fees (action 12) are not
-//   allowed either.
+//   avatar needs no order actions, and spot sends and vault transfers would
+//   move funds to other accounts. Builder fees (action 12) are not allowed
+//   either.
 
 /** CoreWriter, the same on every HyperEVM chain. */
 export const CORE_WRITER: Address = '0x3333333333333333333333333333333333333333'
@@ -100,7 +111,15 @@ export type HyperliquidFundsParams = HyperliquidParams & {
   tokens?: readonly HyperliquidToken[]
 }
 
+export type HyperliquidStakingParams = HyperliquidParams & {
+  /** The validators the avatar may delegate to and undelegate from. Any validator when left out. */
+  validators?: readonly Address[]
+}
+
 const ACTION = {
+  tokenDelegate: 3, // (address validator, uint64 wei, bool isUndelegate)
+  stakingDeposit: 4, // (uint64 wei)
+  stakingWithdraw: 5, // (uint64 wei)
   usdClassTransfer: 7, // (uint64 ntl, bool toPerp)
   addApiWallet: 9, // (address wallet, string name)
   sendAsset: 13, // (address destination, address subAccount, uint32 sourceDex, uint32 destinationDex, uint64 token, uint64 wei)
@@ -203,7 +222,56 @@ const funds = async ({
   })
 }
 
+/**
+ * Move HYPE between the avatar's spot and staking balances, and delegate and
+ * undelegate it, to the listed validators or, without a list, to any.
+ */
+const staking = async ({
+  label,
+  chain,
+  validators,
+}: HyperliquidStakingParams) => {
+  resolve(chain)
+  const pinned = resolveValidators(validators)
+
+  const delegations =
+    pinned == null
+      ? [isAction(ACTION.tokenDelegate)]
+      : pinned.map((validator) =>
+          startsWith(payload(ACTION.tokenDelegate, ['address'], [validator]))
+        )
+
+  return custom({
+    label:
+      label ??
+      (pinned == null
+        ? 'Stake HYPE on Hyperliquid'
+        : `Stake HYPE with ${pinned.length === 1 ? '1 validator' : `${pinned.length} validators`} on Hyperliquid`),
+    permissions: [
+      at('hyperliquid_core_writer', CORE_WRITER).sendRawAction(
+        anyOf([
+          isAction(ACTION.stakingDeposit),
+          isAction(ACTION.stakingWithdraw),
+          ...delegations,
+        ])
+      ),
+    ],
+  })
+}
+
 type Payload = ConditionFunction<BytesLike>
+
+const resolveValidators = (validators: readonly Address[] | undefined) => {
+  if (validators == null) {
+    return null
+  }
+  if (validators.length === 0) {
+    throw new Error('List at least one validator, or leave the list out.')
+  }
+  return Array.from(
+    new Set(validators.map((validator) => getAddress(validator)))
+  )
+}
 
 const resolveTokens = (
   chain: HyperliquidChain,
@@ -287,4 +355,4 @@ const startsWith = (prefix: string): Payload => {
       )
 }
 
-export const hyperliquid = { tradingKeys, funds }
+export const hyperliquid = { tradingKeys, funds, staking }

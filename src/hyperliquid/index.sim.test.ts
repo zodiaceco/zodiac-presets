@@ -30,6 +30,10 @@ const UBTC = HYPERLIQUID_TOKENS[999].UBTC.evm
 const UBTC_SYSTEM_ADDRESS = '0x20000000000000000000000000000000000000c5'
 const UETH_SYSTEM_ADDRESS = '0x20000000000000000000000000000000000000dd'
 const TEN_USDC = 10n * 10n ** 6n
+// Hyper Foundation 1 and 2, active validators (validatorSummaries).
+const VALIDATOR = '0x5ac99df645f3414876c816caa18b2d234024b487'
+const OTHER_VALIDATOR = '0xa82fe73bbd768bc15d1ef2f6142a21ff8bd762ad'
+const ONE_HYPE = 10n ** 8n
 
 const abi = AbiCoder.defaultAbiCoder()
 const erc20 = new Interface([
@@ -82,6 +86,10 @@ const vaultTransfer = action(
 )
 const spotSend = (destination: string) =>
   action(6, ['address', 'uint64', 'uint64'], [destination, 0n, 100_000_000n])
+const stakingDeposit = (wei: bigint) => action(4, ['uint64'], [wei])
+const stakingWithdraw = (wei: bigint) => action(5, ['uint64'], [wei])
+const tokenDelegate = (validator: string, wei: bigint, undelegate: boolean) =>
+  action(3, ['address', 'uint64', 'bool'], [validator, wei, undelegate])
 
 const approve = (spender: string) =>
   erc20.encodeFunctionData('approve', [spender, 100n * TEN_USDC])
@@ -133,6 +141,9 @@ describe.skipIf(!simulationEnabled)('hyperliquid presets on HyperEVM', () => {
               chain: 999,
               tokens: ['USDC', 'HYPE', 'UBTC'],
             }),
+          ],
+          hl_staking: [
+            await hyperliquid.staking({ chain: 999, validators: [VALIDATOR] }),
           ],
         },
         stateOverrides: {
@@ -393,6 +404,48 @@ describe.skipIf(!simulationEnabled)('hyperliquid presets on HyperEVM', () => {
             data: '0x',
             value: 10n ** 16n,
           } as Call),
+
+          // Staking
+          allow(
+            'hl_staking',
+            'spot HYPE to staking',
+            onCoreWriter(stakingDeposit(ONE_HYPE))
+          ),
+          allow(
+            'hl_staking',
+            'staking to spot HYPE',
+            onCoreWriter(stakingWithdraw(ONE_HYPE))
+          ),
+          allow(
+            'hl_staking',
+            'delegate to the listed validator',
+            onCoreWriter(tokenDelegate(VALIDATOR, ONE_HYPE, false))
+          ),
+          allow(
+            'hl_staking',
+            'undelegate from the listed validator',
+            onCoreWriter(tokenDelegate(VALIDATOR, ONE_HYPE, true))
+          ),
+          block(
+            'hl_staking',
+            'delegate to an unlisted validator',
+            onCoreWriter(tokenDelegate(OTHER_VALIDATOR, ONE_HYPE, false))
+          ),
+          block(
+            'hl_staking',
+            'usdClassTransfer',
+            onCoreWriter(usdClassTransfer(TEN_USDC, false))
+          ),
+          block(
+            'hl_staking',
+            'sendAsset to HyperEVM',
+            onCoreWriter(toEvm(TEN_USDC))
+          ),
+          block(
+            'hl_staking',
+            'staking deposit with version 2',
+            onCoreWriter(action(4, ['uint64'], [ONE_HYPE], 2))
+          ),
 
           // Nobody holds this role
           block('hl_nobody', 'add a key', onCoreWriter(addApiWallet(KEY, ''))),

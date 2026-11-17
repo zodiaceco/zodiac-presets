@@ -14,6 +14,7 @@ export {
   HYPERLIQUID,
   type HyperliquidChain,
   type HyperliquidParams,
+  type HyperliquidStakingParams,
 } from './hyperliquid'
 export {
   morpho,

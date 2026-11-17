@@ -427,9 +427,111 @@ describe('hyperliquid.funds with tokens', () => {
   })
 })
 
-describe('both presets in one role', () => {
+// Hyper Foundation 1 and 2, active validators (validatorSummaries).
+const VALIDATOR = '0x5ac99df645f3414876c816caa18b2d234024b487'
+const OTHER_VALIDATOR = '0xa82fe73bbd768bc15d1ef2f6142a21ff8bd762ad'
+
+const stakingDeposit = (wei: bigint) => action(4, ['uint64'], [wei])
+const stakingWithdraw = (wei: bigint) => action(5, ['uint64'], [wei])
+const tokenDelegate = (validator: string, wei: bigint, undelegate: boolean) =>
+  action(3, ['address', 'uint64', 'bool'], [validator, wei, undelegate])
+
+const staking = async (validators?: string[]) =>
+  (
+    await hyperliquid.staking({
+      chain: 999,
+      validators: validators as `0x${string}`[] | undefined,
+    })
+  ).permissions as PresetPermission[]
+
+describe('hyperliquid.staking', () => {
+  it('only calls CoreWriter', async () => {
+    expect(calls(await staking())).toEqual([
+      [CORE_WRITER, SELECTORS.sendRawAction],
+    ])
+  })
+
+  it('moves HYPE between spot and staking and delegates to any validator', async () => {
+    const condition = payloadCondition(await staking())
+
+    for (const payload of [
+      stakingDeposit(100_000_000n),
+      stakingWithdraw(1n),
+      tokenDelegate(VALIDATOR, 100_000_000n, false),
+      tokenDelegate(STRANGER, 1n, true),
+    ]) {
+      expect(passes(condition, payload)).toBe(true)
+    }
+  })
+
+  it('delegates to and undelegates from the listed validators only', async () => {
+    const condition = payloadCondition(await staking([VALIDATOR]))
+
+    for (const payload of [
+      stakingDeposit(1n),
+      stakingWithdraw(1n),
+      tokenDelegate(VALIDATOR, 100_000_000n, false),
+      tokenDelegate(VALIDATOR, 5n, true),
+    ]) {
+      expect(passes(condition, payload)).toBe(true)
+    }
+    for (const payload of [
+      tokenDelegate(OTHER_VALIDATOR, 100_000_000n, false),
+      tokenDelegate(STRANGER, 1n, true),
+    ]) {
+      expect(passes(condition, payload)).toBe(false)
+    }
+  })
+
+  it('refuses every action that is not staking', async () => {
+    const condition = payloadCondition(await staking())
+
+    for (const payload of [
+      usdClassTransfer(1_000_000n, false),
+      toEvm(1_000_000n),
+      addApiWallet(KEY, ''),
+      approveBuilderFee(50n, BUILDER),
+      limitOrder,
+      vaultTransfer,
+      spotSend(STRANGER),
+      action(4, ['uint64'], [1n], 2),
+      '0x',
+    ]) {
+      expect(passes(condition, payload)).toBe(false)
+    }
+  })
+
+  it('names how many validators it may delegate to', async () => {
+    expect((await hyperliquid.staking({ chain: 999 })).label).toBe(
+      'Stake HYPE on Hyperliquid'
+    )
+    expect(
+      (
+        await hyperliquid.staking({
+          chain: 999,
+          validators: [VALIDATOR, OTHER_VALIDATOR],
+        })
+      ).label
+    ).toBe('Stake HYPE with 2 validators on Hyperliquid')
+  })
+
+  it('refuses an empty or malformed validator list', async () => {
+    await expect(
+      hyperliquid.staking({ chain: 999, validators: [] })
+    ).rejects.toThrow('List at least one validator')
+    await expect(
+      hyperliquid.staking({ chain: 999, validators: ['0x1234'] })
+    ).rejects.toThrow()
+  })
+})
+
+describe('all presets in one role', () => {
   const permissions = async () =>
-    [...(await tradingKeys()), ...(await funds())] as unknown as Permission[]
+    [
+      ...(await tradingKeys()),
+      ...(await funds()),
+      ...(await staking([VALIDATOR])),
+    ] as unknown as Permission[]
 
   it('merge into one condition on CoreWriter that still refuses other actions', async () => {
     const { targets } = processPermissions(await permissions())
@@ -441,10 +543,13 @@ describe('both presets in one role', () => {
       addApiWallet(KEY, ''),
       usdClassTransfer(1_000_000n, true),
       toEvm(1_000_000n),
+      stakingDeposit(1n),
+      tokenDelegate(VALIDATOR, 1n, false),
     ]) {
       expect(passes(condition, payload)).toBe(true)
     }
     for (const payload of [
+      tokenDelegate(OTHER_VALIDATOR, 1n, false),
       sendAsset(STRANGER, ZERO, SPOT, SPOT, 0n, 1_000_000n),
       approveBuilderFee(50n, BUILDER),
       spotSend(STRANGER),

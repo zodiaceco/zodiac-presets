@@ -43,6 +43,7 @@ positions the avatar holds.
 | `fluid.withdraw`                         | Withdraw them again.                                                                                                                        |
 | `hyperliquid.tradingKeys` (experimental) | Add, replace and remove trading keys for the avatar's Hyperliquid account.                                                                  |
 | `hyperliquid.funds` (experimental)       | Deposit tokens (USDC by default) into the avatar's Hyperliquid account, move USDC between spot and perp, and withdraw them to the avatar.   |
+| `hyperliquid.staking` (experimental)     | Move the avatar's HYPE between spot and staking, and delegate it to any validator or to listed ones.                                        |
 | `morpho.deposit`                         | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. |
 | `morpho.withdraw`                        | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                             |
 | `uniswap.deposit`                        | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                        |
@@ -83,6 +84,11 @@ ranges of it:
     to the token's system address, which credits the sender's spot balance.
   - For every listed token, action 13 (`sendAsset`) from the avatar's spot to
     the token's system address, which pays it out to the avatar on HyperEVM.
+- `staking` allows action 4 (spot to staking) and action 5 (staking to spot,
+  through Hyperliquid's seven-day unstaking queue) with any amount, and action
+  3 (`tokenDelegate`, delegate and undelegate) to any validator or, with
+  `validators`, to the listed ones only. Staked and delegated HYPE stays the
+  avatar's; a validator takes a commission on rewards.
 
 Withdrawing from spot to HyperEVM costs a HyperCore fee paid in the avatar's
 spot HYPE (200,000 gas at the next HyperEVM block's base fee, a few
@@ -97,6 +103,10 @@ import { hyperliquid } from '@zodiaceco/presets'
 export default [
   await hyperliquid.tradingKeys({ chain: 999 }),
   await hyperliquid.funds({ chain: 999, tokens: ['USDC', 'HYPE'] }),
+  await hyperliquid.staking({
+    chain: 999,
+    validators: ['0x5ac99df645f3414876c816caa18b2d234024b487'], // Hyper Foundation 1
+  }),
 ] satisfies Permissions
 ```
 
