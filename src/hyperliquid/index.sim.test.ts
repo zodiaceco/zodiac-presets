@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { AbiCoder, Interface, keccak256, toBeHex, zeroPadValue } from 'ethers'
-import { CORE_WRITER, HYPERLIQUID, hyperliquid } from '.'
+import { CORE_WRITER, HYPERLIQUID, HYPERLIQUID_TOKENS, hyperliquid } from '.'
 import type { Address } from '../kit'
 import {
   AVATAR,
@@ -25,6 +25,10 @@ const USDC_SYSTEM_ADDRESS = '0x2000000000000000000000000000000000000000'
 const ZERO = '0x0000000000000000000000000000000000000000'
 const PERP = 0
 const SPOT = 0xffffffff
+const HYPE_SYSTEM_ADDRESS = '0x2222222222222222222222222222222222222222'
+const UBTC = HYPERLIQUID_TOKENS[999].UBTC.evm
+const UBTC_SYSTEM_ADDRESS = '0x20000000000000000000000000000000000000c5'
+const UETH_SYSTEM_ADDRESS = '0x20000000000000000000000000000000000000dd'
 const TEN_USDC = 10n * 10n ** 6n
 
 const abi = AbiCoder.defaultAbiCoder()
@@ -89,7 +93,7 @@ const deposit = (dex: number) =>
 const usdcBalance = (holder: string) =>
   keccak256(abi.encode(['address', 'uint256'], [holder, 9])) // FiatToken v2.2
 
-type Call = { to: Address; data: string; operation?: 0 | 1 }
+type Call = { to: Address; data: string; value?: bigint; operation?: 0 | 1 }
 const onCoreWriter = (data: string): Call => ({ to: CORE_WRITER, data })
 const onUsdc = (data: string): Call => ({ to: USDC, data })
 const onWallet = (data: string): Call => ({ to: WALLET, data })
@@ -123,6 +127,12 @@ describe.skipIf(!simulationEnabled)('hyperliquid presets on HyperEVM', () => {
           hl_all: [
             await hyperliquid.tradingKeys({ chain: 999 }),
             await hyperliquid.funds({ chain: 999 }),
+          ],
+          hl_tokens: [
+            await hyperliquid.funds({
+              chain: 999,
+              tokens: ['USDC', 'HYPE', 'UBTC'],
+            }),
           ],
         },
         stateOverrides: {
@@ -334,6 +344,55 @@ describe.skipIf(!simulationEnabled)('hyperliquid presets on HyperEVM', () => {
               action(99, ['address', 'uint64'], [STRANGER, TEN_USDC])
             )
           ),
+
+          // A token list: HYPE and UBTC next to USDC
+          allow('hl_tokens', 'deposit HYPE (value, no calldata)', {
+            to: HYPE_SYSTEM_ADDRESS,
+            data: '0x',
+            value: 10n ** 16n,
+          } as Call),
+          block('hl_tokens', 'HYPE to its system address with calldata', {
+            to: HYPE_SYSTEM_ADDRESS,
+            data: '0x12345678',
+            value: 10n ** 16n,
+          } as Call),
+          allow(
+            'hl_tokens',
+            'withdraw HYPE to HyperEVM',
+            onCoreWriter(
+              sendAsset(HYPE_SYSTEM_ADDRESS, ZERO, SPOT, SPOT, 150n, 10n ** 6n)
+            )
+          ),
+          allow('hl_tokens', 'deposit UBTC (transfer to its system address)', {
+            to: UBTC,
+            data: erc20.encodeFunctionData('transfer', [
+              UBTC_SYSTEM_ADDRESS,
+              0n,
+            ]),
+          }),
+          block('hl_tokens', 'transfer UBTC to a stranger', {
+            to: UBTC,
+            data: erc20.encodeFunctionData('transfer', [STRANGER, 0n]),
+          }),
+          allow(
+            'hl_tokens',
+            'withdraw UBTC to HyperEVM',
+            onCoreWriter(
+              sendAsset(UBTC_SYSTEM_ADDRESS, ZERO, SPOT, SPOT, 197n, 10n ** 4n)
+            )
+          ),
+          block(
+            'hl_tokens',
+            'withdraw UETH (not listed)',
+            onCoreWriter(
+              sendAsset(UETH_SYSTEM_ADDRESS, ZERO, SPOT, SPOT, 221n, 10n ** 4n)
+            )
+          ),
+          block('hl_funds', 'deposit HYPE without it in the list', {
+            to: HYPE_SYSTEM_ADDRESS,
+            data: '0x',
+            value: 10n ** 16n,
+          } as Call),
 
           // Nobody holds this role
           block('hl_nobody', 'add a key', onCoreWriter(addApiWallet(KEY, ''))),

@@ -2,7 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { CHAIN_IDS } from '@zodiaceco/sdk/allow'
 import { AbiCoder } from 'ethers'
 import { processPermissions, type Permission } from 'zodiac-roles-sdk'
-import { CORE_WRITER, HYPERLIQUID, hyperliquid } from '.'
+import {
+  CORE_WRITER,
+  HYPERLIQUID,
+  HYPERLIQUID_TOKENS,
+  hyperliquid,
+  systemAddress,
+  type HyperliquidToken,
+} from '.'
 
 const { usdc: USDC, coreDepositWallet: CORE_DEPOSIT_WALLET } = HYPERLIQUID[999]
 const usdc = USDC.toLowerCase()
@@ -35,7 +42,7 @@ const BUILDER = '0x1924b8561eeF20e70Ede628A296175D358BE80e5'
 type PresetPermission = {
   targetAddress: string
   selector: string
-  condition: any
+  condition?: any
   send?: boolean
   delegatecall?: boolean
 }
@@ -286,6 +293,136 @@ describe('hyperliquid.funds', () => {
       '0x',
     ]) {
       expect(passes(condition, payload)).toBe(false)
+    }
+  })
+})
+
+describe('hyperliquid.funds with tokens', () => {
+  const HYPE = '0x2222222222222222222222222222222222222222'
+  const UBTC = HYPERLIQUID_TOKENS[999].UBTC
+  const ubtc = UBTC.evm.toLowerCase()
+  const UBTC_SYSTEM_ADDRESS = '0x20000000000000000000000000000000000000c5'
+  const TRANSFER = '0xa9059cbb'
+
+  const withTokens = async (tokens: HyperliquidToken[]) =>
+    (await hyperliquid.funds({ chain: 999, tokens }))
+      .permissions as PresetPermission[]
+
+  it('derives system addresses as 0x20 and the token index, HYPE apart', () => {
+    expect(systemAddress('UBTC', 197).toLowerCase()).toBe(UBTC_SYSTEM_ADDRESS)
+    expect(systemAddress('USDC', 0).toLowerCase()).toBe(USDC_SYSTEM_ADDRESS)
+    expect(systemAddress('HYPE', 150)).toBe(HYPE)
+  })
+
+  it('deposits HYPE as value with empty calldata to its system address', async () => {
+    const permissions = await withTokens(['USDC', 'HYPE'])
+    const hype = permissions.find((p) => p.targetAddress === HYPE)
+
+    expect(hype).toEqual({
+      targetAddress: HYPE,
+      selector: '0x00000000',
+      send: true,
+    })
+    expect(
+      permissions.filter((p) => p.send).map((p) => p.targetAddress)
+    ).toEqual([HYPE])
+  })
+
+  it('transfers a linked ERC-20 to its system address only', async () => {
+    const permissions = await withTokens(['UBTC'])
+    const transfer = find(permissions, ubtc, TRANSFER)
+
+    expect(transfer?.condition.children[0]).toMatchObject({
+      operator: EQUAL_TO,
+      compValue: `0x${UBTC_SYSTEM_ADDRESS.slice(2).padStart(64, '0')}`,
+    })
+    expect(transfer?.condition.children[1].operator).toBe(PASS)
+  })
+
+  it('withdraws each listed token to its own system address, any amount', async () => {
+    const condition = payloadCondition(
+      await withTokens(['USDC', 'HYPE', 'UBTC'])
+    )
+
+    for (const payload of [
+      toEvm(1_000_000n),
+      sendAsset(HYPE, ZERO, SPOT, SPOT, 150n, 1n),
+      sendAsset(HYPE, ZERO, SPOT, SPOT, 150n, 2n ** 64n - 1n),
+      sendAsset(UBTC_SYSTEM_ADDRESS, ZERO, SPOT, SPOT, 197n, 10n),
+      usdClassTransfer(1n, true),
+    ]) {
+      expect(passes(condition, payload)).toBe(true)
+    }
+  })
+
+  it('refuses a token sent to another system address, a stranger or from elsewhere', async () => {
+    const condition = payloadCondition(
+      await withTokens(['USDC', 'HYPE', 'UBTC'])
+    )
+
+    for (const payload of [
+      // HYPE to UBTC's system address, UBTC to HYPE's
+      sendAsset(UBTC_SYSTEM_ADDRESS, ZERO, SPOT, SPOT, 150n, 1n),
+      sendAsset(HYPE, ZERO, SPOT, SPOT, 197n, 1n),
+      sendAsset(STRANGER, ZERO, SPOT, SPOT, 150n, 1n),
+      sendAsset(HYPE, STRANGER, SPOT, SPOT, 150n, 1n),
+      sendAsset(HYPE, ZERO, PERP, SPOT, 150n, 1n),
+      // UETH is linked but not listed
+      sendAsset(
+        '0x20000000000000000000000000000000000000dd',
+        ZERO,
+        SPOT,
+        SPOT,
+        221n,
+        1n
+      ),
+    ]) {
+      expect(passes(condition, payload)).toBe(false)
+    }
+  })
+
+  it('moves between perp and spot only when USDC is listed', async () => {
+    const permissions = await withTokens(['HYPE'])
+    const condition = payloadCondition(permissions)
+
+    expect(passes(condition, usdClassTransfer(1n, true))).toBe(false)
+    expect(passes(condition, sendAsset(HYPE, ZERO, SPOT, SPOT, 150n, 1n))).toBe(
+      true
+    )
+    expect(find(permissions, usdc, SELECTORS.approve)).toBeUndefined()
+  })
+
+  it('names the tokens it moves', async () => {
+    expect(
+      (
+        await hyperliquid.funds({
+          chain: 999,
+          tokens: ['USDC', 'HYPE', 'UBTC'],
+        })
+      ).label
+    ).toBe('Deposit, move and withdraw USDC, HYPE and UBTC on Hyperliquid')
+  })
+
+  it('refuses an empty or unknown token list', async () => {
+    await expect(hyperliquid.funds({ chain: 999, tokens: [] })).rejects.toThrow(
+      'List at least one token.'
+    )
+    await expect(
+      hyperliquid.funds({
+        chain: 999,
+        tokens: ['NOPE' as unknown as HyperliquidToken],
+      })
+    ).rejects.toThrow('Unknown Hyperliquid token NOPE on chain 999.')
+  })
+
+  it('lists only tokens whose index and contract are what spotMeta says', () => {
+    const tokens = HYPERLIQUID_TOKENS[999]
+
+    expect(tokens.USDC.index).toBe(0)
+    expect(tokens.HYPE.index).toBe(150)
+    for (const [name, token] of Object.entries(tokens)) {
+      if (name === 'USDC' || name === 'HYPE') continue
+      expect('evm' in token && /^0x[0-9a-fA-F]{40}$/.test(token.evm)).toBe(true)
     }
   })
 })

@@ -42,7 +42,7 @@ positions the avatar holds.
 | `fluid.deposit`                          | Supply tokens (or the native token) to their Fluid fTokens.                                                                                 |
 | `fluid.withdraw`                         | Withdraw them again.                                                                                                                        |
 | `hyperliquid.tradingKeys` (experimental) | Add, replace and remove trading keys for the avatar's Hyperliquid account.                                                                  |
-| `hyperliquid.funds` (experimental)       | Deposit USDC into the avatar's Hyperliquid account, move it between spot and perp, and withdraw it from spot to the avatar on HyperEVM.     |
+| `hyperliquid.funds` (experimental)       | Deposit tokens (USDC by default) into the avatar's Hyperliquid account, move USDC between spot and perp, and withdraw them to the avatar.   |
 | `morpho.deposit`                         | Deposit into Morpho vaults (V1 and V2) that share one asset, straight into the vault or through VaultBundlesV1 the way the Morpho app does. |
 | `morpho.withdraw`                        | Withdraw from Morpho vaults, straight from the vault or through VaultBundlesV1.                                                             |
 | `uniswap.deposit`                        | Open Uniswap v3 positions for given tokens and fee tiers, or add to given positions.                                                        |
@@ -50,13 +50,13 @@ positions the avatar holds.
 
 Without a `label`, each preset derives one from its inputs.
 
-| Protocol                   | Chains                                                                                                                                          | Addresses                                                                 |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Aave v3                    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`    |
-| Fluid                      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`   |
-| Hyperliquid (experimental) | HyperEVM                                                                                                                                        | `HYPERLIQUID` and `CORE_WRITER` in `src/hyperliquid/index.ts`             |
-| Morpho                     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts` |
-| Uniswap v3                 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`    |
+| Protocol                   | Chains                                                                                                                                          | Addresses                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Aave v3                    | Ethereum (Core, Prime, EtherFi), Optimism, BNB, Gnosis, Polygon, Sonic, MegaETH, Mantle, Base, Plasma, Arbitrum, Celo, Avalanche, Linea, Scroll | `AAVE_V3` in `src/aave/markets.ts`, from `@bgd-labs/aave-address-book`              |
+| Fluid                      | Ethereum, BNB, Polygon, Base, Plasma, Arbitrum                                                                                                  | `F_TOKENS` in `src/fluid/fTokens.ts`, read on chain by `bun sync:fluid`             |
+| Hyperliquid (experimental) | HyperEVM                                                                                                                                        | `HYPERLIQUID`, `HYPERLIQUID_TOKENS` and `CORE_WRITER` in `src/hyperliquid/index.ts` |
+| Morpho                     | Ethereum, Optimism, Unichain, Polygon, World Chain, HyperEVM, Base, Arbitrum, Katana                                                            | `VAULT_BUNDLES_V1` in `src/morpho/index.ts`, from `@morpho-org/morpho-ts`           |
+| Uniswap v3                 | Every chain with a v3 position manager that Zodiac supports                                                                                     | `POSITION_MANAGER` in `src/uniswap/index.ts`, from `@uniswap/sdk-core`              |
 
 Morpho pins VaultBundlesV1's referral fee to zero and, without a `label`, looks
 up the vaults' names on the [Morpho API](https://api.morpho.org/graphql). The
@@ -72,25 +72,31 @@ ranges of it:
 - `tradingKeys` allows action 9 (`addApiWallet`) with any key and name.
   Trading keys trade the account, but Hyperliquid lets them neither withdraw
   nor transfer from it.
-- `funds` allows USDC approvals to Circle's CoreDepositWallet, deposits for the
-  avatar into perp or spot, action 7 (`usdClassTransfer`, between the avatar's
-  own spot and perp) and action 13 (`sendAsset`) of USDC from spot to USDC's
-  system address, which pays it out to the avatar on HyperEVM. Only the amounts
-  are open.
+- `funds` moves the tokens it is given, USDC alone by default, between the
+  avatar's HyperEVM and HyperCore balances. Only the amounts are open:
+  - USDC: approvals to Circle's CoreDepositWallet, deposits for the avatar
+    into perp or spot, and action 7 (`usdClassTransfer`, between the avatar's
+    own spot and perp).
+  - HYPE: value sent to HYPE's system address with empty calldata, which
+    credits the sender's spot balance.
+  - Other linked tokens (`UBTC`, `UETH`, `USOL`, `USDT0`): an ERC-20 `transfer`
+    to the token's system address, which credits the sender's spot balance.
+  - For every listed token, action 13 (`sendAsset`) from the avatar's spot to
+    the token's system address, which pays it out to the avatar on HyperEVM.
 
 Withdrawing from spot to HyperEVM costs a HyperCore fee paid in the avatar's
 spot HYPE (200,000 gas at the next HyperEVM block's base fee, a few
-hundred-thousandths of a HYPE). The presets allow no HYPE moves, so fund the
-avatar's spot balance once with a little HYPE outside this role: send it to the
-avatar's address on Hyperliquid, or deposit it as an owner of the Safe. About
-0.001 HYPE covers dozens of withdrawals.
+hundred-thousandths of a HYPE). List `HYPE` so the role can deposit some; about
+0.001 HYPE covers dozens of withdrawals. Without it, fund the avatar's spot HYPE
+outside this role: send it to the avatar's address on Hyperliquid, or deposit
+it as an owner of the Safe.
 
 ```ts
 import { hyperliquid } from '@zodiaceco/presets'
 
 export default [
   await hyperliquid.tradingKeys({ chain: 999 }),
-  await hyperliquid.funds({ chain: 999 }),
+  await hyperliquid.funds({ chain: 999, tokens: ['USDC', 'HYPE'] }),
 ] satisfies Permissions
 ```
 

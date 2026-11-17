@@ -32,8 +32,17 @@ import { oneOf, ZERO } from '../utils'
 // - `usdClassTransfer` (action 7) moves USDC between the avatar's own perp and
 //   spot balances. It has no destination field, so only the header is pinned.
 // - `sendAsset` (action 13) is pinned in everything but the amount: from the
-//   avatar's spot balance (sub-account zero), USDC (token 0), to USDC's system
-//   address, which HyperCore pays out to the sender's own HyperEVM balance.
+//   avatar's spot balance (sub-account zero), one of the listed tokens (its
+//   spot token index), to that token's system address, which HyperCore pays
+//   out to the sender's own HyperEVM balance.
+// - `funds` takes a list of tokens, USDC alone by default. Besides USDC:
+//   - HYPE is HyperEVM's native coin. It reaches the avatar's spot balance as
+//     value sent to HYPE's system address, which credits `msg.sender`, the
+//     avatar, whatever the calldata. Roles reads empty calldata as selector
+//     `0x00000000`, so only that "function" may carry value there.
+//   - Every other token is an ERC-20 linked to its spot token. Its `transfer`
+//     is pinned to the token's system address, which HyperCore credits to the
+//     sender's spot balance; only the amount is open.
 // - No other action is allowed. Trading keys sign orders off chain, so the
 //   avatar needs no order actions, and spot sends, vault transfers and staking
 //   would move funds to other accounts. Builder fees (action 12) are not
@@ -62,6 +71,35 @@ export type HyperliquidParams = {
   chain: HyperliquidChain
 }
 
+/**
+ * Spot tokens `funds` can move between the avatar's HyperEVM and HyperCore
+ * balances, by chain id: the spot token index, and for ERC-20s the linked
+ * HyperEVM contract. From Hyperliquid's `spotMeta` (`tokens[].index`,
+ * `evmContract.address`), read 2026-11-17. USDC goes through Circle's
+ * CoreDepositWallet instead (`HYPERLIQUID`), HYPE is the native coin.
+ */
+export const HYPERLIQUID_TOKENS = {
+  999: {
+    USDC: { index: 0 },
+    HYPE: { index: 150 },
+    UBTC: { index: 197, evm: '0x9FDBdA0A5e284c32744D2f17Ee5c74B284993463' },
+    UETH: { index: 221, evm: '0xBe6727B535545C67d5cAa73dEa54865B92CF7907' },
+    USOL: { index: 254, evm: '0x068f321Fa8Fb9f0D135f290Ef6a3e2813e1c8A29' },
+    USDT0: { index: 268, evm: '0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb' },
+  },
+} as const satisfies Record<
+  HyperliquidChain,
+  Record<string, { index: number; evm?: Address }>
+>
+
+export type HyperliquidToken =
+  keyof (typeof HYPERLIQUID_TOKENS)[HyperliquidChain]
+
+export type HyperliquidFundsParams = HyperliquidParams & {
+  /** The tokens that may move. Defaults to USDC. */
+  tokens?: readonly HyperliquidToken[]
+}
+
 const ACTION = {
   usdClassTransfer: 7, // (uint64 ntl, bool toPerp)
   addApiWallet: 9, // (address wallet, string name)
@@ -70,10 +108,24 @@ const ACTION = {
 
 const PERP_DEX = 0
 const SPOT_DEX = 0xffffffff
-const USDC_TOKEN = 0n
-/** HyperCore pays USDC sent here out to the sender's HyperEVM balance. */
-const USDC_SYSTEM_ADDRESS: Address =
-  '0x2000000000000000000000000000000000000000'
+/** HYPE's system address: value sent here credits the sender's spot HYPE. */
+export const HYPE_SYSTEM_ADDRESS: Address =
+  '0x2222222222222222222222222222222222222222'
+/** What Roles reads as the selector of a call with empty calldata. */
+const NO_CALLDATA = '0x00000000'
+
+/**
+ * Where HyperCore pays a spot token out to the sender on HyperEVM, and where
+ * an ERC-20 transfer credits the sender's spot balance: 0x20, then the token
+ * index big-endian. HYPE has its own.
+ */
+export const systemAddress = (
+  token: HyperliquidToken,
+  index: number
+): Address =>
+  token === 'HYPE'
+    ? HYPE_SYSTEM_ADDRESS
+    : (getAddress(`0x20${index.toString(16).padStart(38, '0')}`) as Address)
 
 /**
  * Add, replace and remove the avatar's Hyperliquid trading keys.
@@ -92,37 +144,100 @@ const tradingKeys = async ({ label, chain }: HyperliquidParams) => {
 }
 
 /**
- * Deposit USDC into the avatar's Hyperliquid account, move it between spot and
- * perp, and withdraw it from spot to the avatar on HyperEVM.
+ * Deposit the listed tokens (USDC by default) into the avatar's Hyperliquid
+ * account and withdraw them from spot to the avatar on HyperEVM. With USDC,
+ * also move it between spot and perp.
  */
-const funds = async ({ label, chain }: HyperliquidParams) => {
+const funds = async ({
+  label,
+  chain,
+  tokens = ['USDC'],
+}: HyperliquidFundsParams) => {
   const { usdc, coreDepositWallet } = resolve(chain)
+  const listed = resolveTokens(chain, tokens)
   const wallet = at('hyperliquid_core_deposit_wallet', coreDepositWallet)
   const dex = oneOf([PERP_DEX, SPOT_DEX])
 
-  return custom({
-    label: label ?? 'Deposit, move and withdraw USDC on Hyperliquid',
-    permissions: [
-      at('erc20', usdc).approve(coreDepositWallet),
-      wallet.depositFor(c.avatar, undefined, dex),
-      wallet.deposit(undefined, dex),
-      at('hyperliquid_core_writer', CORE_WRITER).sendRawAction(
-        c.or<[Payload, Payload], BytesLike>(
-          isAction(ACTION.usdClassTransfer),
-          startsWith(
-            payload(
-              ACTION.sendAsset,
-              ['address', 'address', 'uint32', 'uint32', 'uint64'],
-              [USDC_SYSTEM_ADDRESS, ZERO, SPOT_DEX, SPOT_DEX, USDC_TOKEN]
-            )
-          )
+  const deposits = listed.flatMap(({ token, index, evm }) => {
+    if (token === 'USDC') {
+      return [
+        at('erc20', usdc).approve(coreDepositWallet),
+        wallet.depositFor(c.avatar, undefined, dex),
+        wallet.deposit(undefined, dex),
+      ]
+    }
+    if (token === 'HYPE') {
+      return [
+        {
+          targetAddress: HYPE_SYSTEM_ADDRESS.toLowerCase() as `0x${string}`,
+          selector: NO_CALLDATA,
+          send: true,
+        } as const,
+      ]
+    }
+    return [at('erc20', evm!).transfer(systemAddress(token, index))]
+  })
+
+  const payloads: Payload[] = [
+    ...(listed.some(({ token }) => token === 'USDC')
+      ? [isAction(ACTION.usdClassTransfer)]
+      : []),
+    ...listed.map(({ token, index }) =>
+      startsWith(
+        payload(
+          ACTION.sendAsset,
+          ['address', 'address', 'uint32', 'uint32', 'uint64'],
+          [systemAddress(token, index), ZERO, SPOT_DEX, SPOT_DEX, BigInt(index)]
         )
-      ),
+      )
+    ),
+  ]
+
+  return custom({
+    label:
+      label ?? `Deposit, move and withdraw ${listOf(tokens)} on Hyperliquid`,
+    permissions: [
+      ...deposits,
+      at('hyperliquid_core_writer', CORE_WRITER).sendRawAction(anyOf(payloads)),
     ],
   })
 }
 
 type Payload = ConditionFunction<BytesLike>
+
+const resolveTokens = (
+  chain: HyperliquidChain,
+  tokens: readonly HyperliquidToken[]
+) => {
+  if (tokens.length === 0) {
+    throw new Error('List at least one token.')
+  }
+  const known: Record<string, { index: number; evm?: Address }> =
+    HYPERLIQUID_TOKENS[chain]
+  return Array.from(new Set(tokens)).map((token) => {
+    const entry = known[token]
+    if (entry == null) {
+      throw new Error(`Unknown Hyperliquid token ${token} on chain ${chain}.`)
+    }
+    return { token, ...entry }
+  })
+}
+
+/** One condition, or an `Or` over several: `c.or` takes at least two. */
+const anyOf = (payloads: Payload[]): Payload => {
+  const [first, second, ...rest] = payloads
+  return second == null
+    ? first!
+    : c.or<[Payload, Payload, ...Payload[]], BytesLike>(first!, second, ...rest)
+}
+
+/** "USDC", "USDC and HYPE", "USDC, HYPE and UBTC". */
+const listOf = (tokens: readonly string[]) => {
+  const unique = Array.from(new Set(tokens))
+  return unique.length <= 1
+    ? unique.join('')
+    : `${unique.slice(0, -1).join(', ')} and ${unique.at(-1)}`
+}
 
 const resolve = (chain: HyperliquidChain) => {
   const addresses = HYPERLIQUID[chain]
