@@ -78,6 +78,13 @@ ranges of it:
   system address, which pays it out to the avatar on HyperEVM. Only the amounts
   are open.
 
+Withdrawing from spot to HyperEVM costs a HyperCore fee paid in the avatar's
+spot HYPE (200,000 gas at the next HyperEVM block's base fee, a few
+hundred-thousandths of a HYPE). The presets allow no HYPE moves, so fund the
+avatar's spot balance once with a little HYPE outside this role: send it to the
+avatar's address on Hyperliquid, or deposit it as an owner of the Safe. About
+0.001 HYPE covers dozens of withdrawals.
+
 ```ts
 import { hyperliquid } from '@zodiaceco/presets'
 
