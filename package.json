@@ -36,7 +36,8 @@
     "fix:format": "prettier --write .",
     "sync:fluid": "bun scripts/sync-fluid.ts",
     "check:fluid": "bun scripts/sync-fluid.ts --check",
-    "test": "bun test"
+    "test": "bun test",
+    "test:sim": "SIMULATE=1 bun test sim"
   },
   "peerDependencies": {
     "@zodiaceco/sdk": "^2.7.0",

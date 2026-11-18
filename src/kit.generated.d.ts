@@ -150,6 +150,35 @@ export interface AllowKit {
       withdrawWithSignature: (sharesToPermit_?: Scoping<import("ethers").BigNumberish>, assets_?: Scoping<import("ethers").BigNumberish>, receiver_?: Scoping<`0x${string}`>, owner_?: Scoping<`0x${string}`>, maxSharesBurn_?: Scoping<import("ethers").BigNumberish>, deadline_?: Scoping<import("ethers").BigNumberish>, signature_?: Scoping<import("ethers").BytesLike>, options?: Options) => FunctionPermission;
       withdrawWithSignatureNative: (sharesToPermit_?: Scoping<import("ethers").BigNumberish>, assets_?: Scoping<import("ethers").BigNumberish>, receiver_?: Scoping<`0x${string}`>, owner_?: Scoping<`0x${string}`>, maxSharesBurn_?: Scoping<import("ethers").BigNumberish>, deadline_?: Scoping<import("ethers").BigNumberish>, signature_?: Scoping<import("ethers").BytesLike>, options?: Options) => FunctionPermission;
     };
+    hyperliquid_core_deposit_wallet: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      acceptOwnership: (options?: Options) => FunctionPermission;
+      coreReceiveWithData: (from?: Scoping<`0x${string}`>, destinationRecipient?: Scoping<`0x${string}`>, destinationChainId?: Scoping<import("ethers").BigNumberish>, amount?: Scoping<import("ethers").BigNumberish>, coreNonce?: Scoping<import("ethers").BigNumberish>, data?: Scoping<import("ethers").BytesLike>, options?: Options) => FunctionPermission;
+      deposit: (amount?: Scoping<import("ethers").BigNumberish>, destinationDex?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      depositFor: (recipient?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, destinationDex?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      depositWithAuth: (amount?: Scoping<import("ethers").BigNumberish>, authValidAfter?: Scoping<import("ethers").BigNumberish>, authValidBefore?: Scoping<import("ethers").BigNumberish>, authNonce?: Scoping<`0x${string}`>, v?: Scoping<import("ethers").BigNumberish>, r?: Scoping<`0x${string}`>, s?: Scoping<`0x${string}`>, destinationDex?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      disableDex: (dex?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      disableDexForwarding: (options?: Options) => FunctionPermission;
+      enableDex: (dex?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      enableDexForwarding: (options?: Options) => FunctionPermission;
+      initialize: (roles?: Scoping<{ owner: `0x${string}`; pauser: `0x${string}`; rescuer: `0x${string}` }>, options?: Options) => FunctionPermission;
+      pause: (options?: Options) => FunctionPermission;
+      rescueERC20: (tokenContract?: Scoping<`0x${string}`>, to?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      transfer: (to?: Scoping<`0x${string}`>, amount?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      transferOwnership: (newOwner?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      unpause: (options?: Options) => FunctionPermission;
+      unsetCctpForwardFee: (destinationDomain?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      updateCctpDefaultForwardFee: (maxFee?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      updateCctpForwardFee: (destinationDomain?: Scoping<import("ethers").BigNumberish>, maxFee?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      updateCctpMaxFee: (maxFee?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      updateNewCoreAccountFee: (fee?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
+      updatePauser: (_newPauser?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+      updateRescuer: (newRescuer?: Scoping<`0x${string}`>, options?: Options) => FunctionPermission;
+    };
+    hyperliquid_core_writer: {
+      [EVERYTHING]: (options?: Options) => TargetPermission;
+      sendRawAction: (data?: Scoping<import("ethers").BytesLike>, options?: Options) => FunctionPermission;
+    };
     morpho_vault_bundles_v1: {
       [EVERYTHING]: (options?: Options) => TargetPermission;
       vaultBundlesV1Deposit: (vault?: Scoping<`0x${string}`>, assets?: Scoping<import("ethers").BigNumberish>, maxSharePriceE27?: Scoping<import("ethers").BigNumberish>, assetPermit?: Scoping<{ kind: import("ethers").BigNumberish; data: import("ethers").BytesLike }>, referralFeePct?: Scoping<import("ethers").BigNumberish>, referralFeeRecipient?: Scoping<`0x${string}`>, deadline?: Scoping<import("ethers").BigNumberish>, options?: Options) => FunctionPermission;
